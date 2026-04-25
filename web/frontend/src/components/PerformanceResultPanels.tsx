@@ -176,13 +176,9 @@ export function PerformanceResultPanels({ data, err, breakdownTitle, compactMetr
               <MetricCard compact={compact} label="Clicks" value={fmt(summary.total_clicks as number, 0)} />
               <MetricCard compact={compact} label="Conversions" value={fmt(summary.total_conversions as number, 0)} />
               <MetricCard compact={compact} label="Revenue (USD)" value={fmt(summary.total_revenue_usd as number)} />
-              <MetricCard compact={compact} label="Viewability" value={fmtPct(summary.overall_viewability_rate as number)} />
               <MetricCard compact={compact} label="CTR" value={fmtPct(summary.overall_ctr as number)} />
               <MetricCard compact={compact} label="CPA (USD)" value={fmt(summary.overall_cpa_usd as number)} />
-              <MetricCard compact={compact} label="CVR" value={fmtPct(summary.overall_cvr as number)} />
-              <MetricCard compact={compact} label="IPM" value={fmt(summary.overall_ipm as number)} />
               <MetricCard compact={compact} label="ROAS" value={fmt(summary.overall_roas as number)} />
-              <MetricCard compact={compact} label="Rows" value={fmt(data?.row_count, 0)} />
             </div>
 
             {topRowSplit ? (

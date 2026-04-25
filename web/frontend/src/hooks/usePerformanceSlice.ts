@@ -6,12 +6,23 @@ import {
 } from '../lib/api'
 import { performanceDailyQueryBase, type PerformanceBreakdownKey } from '../lib/performanceQueryDefaults'
 
+export type PerformanceSliceOptions = {
+  /** Request additional grouped slices (same filtered fact rows as summary / timeseries). */
+  extraBreakdowns?: readonly string[] | string[]
+}
+
 /**
  * Runs /api/performance/query when `filters` is non-null and dates are set.
  */
-export function usePerformanceSlice(filters: PerformanceFilters | null, breakdown: PerformanceBreakdownKey) {
+export function usePerformanceSlice(
+  filters: PerformanceFilters | null,
+  breakdown: PerformanceBreakdownKey,
+  options?: PerformanceSliceOptions | null,
+) {
   const [data, setData] = useState<PerformanceQueryResponse | null>(null)
   const [err, setErr] = useState<string | null>(null)
+
+  const extraKey = options?.extraBreakdowns?.length ? options.extraBreakdowns.join(',') : ''
 
   useEffect(() => {
     if (!filters?.date_from || !filters?.date_to) {
@@ -24,6 +35,7 @@ export function usePerformanceSlice(filters: PerformanceFilters | null, breakdow
       filters,
       ...performanceDailyQueryBase,
       breakdown,
+      breakdowns: options?.extraBreakdowns?.length ? [...options.extraBreakdowns] : undefined,
     })
       .then((r) => {
         if (!cancelled) setData(r)
@@ -34,7 +46,7 @@ export function usePerformanceSlice(filters: PerformanceFilters | null, breakdow
     return () => {
       cancelled = true
     }
-  }, [filters, breakdown])
+  }, [filters, breakdown, extraKey])
 
   return { data, err }
 }

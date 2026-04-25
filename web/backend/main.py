@@ -55,6 +55,8 @@ class PerformanceQueryBody(BaseModel):
     filters: dict[str, Any] = Field(default_factory=dict)
     timeseries_grain: str | None = None
     breakdown: str | None = None
+    """Optional list of dimensions to aggregate in one response (country, os, format, vertical)."""
+    breakdowns: list[str] | None = None
     leaderboard: dict[str, Any] | None = None
     include_entity_rankings: bool = False
 

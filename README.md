@@ -310,7 +310,7 @@ Shorter guides with the same domain story in context:
 Layout:
 
 - **`data_science/`** — CSVs under `data_science/data/` (and `assets/`), plus notebooks under `data_science/notebooks/`. Use this tree for analysis and experiments **without** running the web stack.
-- **`web/`** — Production-style stack: `web/backend/` (FastAPI: `/api/performance/*`, `/api/fatigue/*`, `/api/recommendations/*`), `web/frontend/` (React + Vite UI), `web/docker-compose.yml`, and `web/db/schema.sql` (PostgreSQL DDL).
+- **`web/`** — Production-style stack: `web/backend/` (FastAPI: `/api/performance/*`, …), `web/frontend/` (React + Vite UI), `web/docker-compose.yml`, and `web/db/schema.sql` (PostgreSQL DDL: **one public table per seeded CSV** in `data_science/data/`, excluding `data_dictionary.csv`).
 
 **Web API data source**
 
@@ -336,7 +336,7 @@ export IMPORT_DATA_DIR=/absolute/path/to/HACK_UPC_SMADEX/data_science/data
 python web/backend/scripts/bootstrap_pg_from_csv.py
 ```
 
-If `IMPORT_DATA_DIR` is unset, the script defaults to `data_science/data/` relative to the repository root. It applies `web/db/schema.sql` and loads rows **only** when `creative_daily_country_os_stats` is empty.
+If `IMPORT_DATA_DIR` is unset, the script defaults to `data_science/data/` relative to the repository root. It applies `web/db/schema.sql`, then loads **all** CSV-backed tables when the fact table is empty, or **backfills** empty summary/dictionary tables when the fact table already has rows.
 
 **Run with Docker (Postgres + API + UI)**
 
@@ -347,7 +347,7 @@ cd web && docker compose up --build
 # Postgres: localhost:5432  user/password/db: smadex / smadex / smadex
 ```
 
-Compose mounts `../data_science/data` read-only at **`/import`** on the backend. On each backend start, `scripts.ensure_db_seeded` runs: if core tables are missing it applies `web/db/schema.sql`; if **`creative_daily_country_os_stats` has at least one row**, CSV import is **skipped** (you should see `[ensure_db_seeded] creative_daily_country_os_stats has N rows; skip import` in logs); if the fact table is **empty**, tables are truncated and CSVs are loaded from `/import`.
+Compose mounts `../data_science/data` read-only at **`/import`** on the backend. On each backend start, `scripts.ensure_db_seeded` runs: if any seed table is missing it applies `web/db/schema.sql`; if **`creative_daily_country_os_stats` has at least one row**, the full truncate+reload is **skipped** and empty tables (e.g. new `campaign_summary`) are **backfilled** from CSV; if the fact table is **empty**, all seven seeded tables are truncated and the corresponding CSVs are loaded from `/import` (`data_dictionary.csv` is not loaded into Postgres).
 
 **Reset the database** (force a full re-seed on next start): `cd web && docker compose down -v` then `up` again (removes the named volume `smadex_pgdata`).
 

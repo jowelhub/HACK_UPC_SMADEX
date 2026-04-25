@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { BackNavLink } from '../components/BackNavLink'
+import { CreativeCrossDimensionSection } from '../components/CreativeCrossDimensionSection'
 import { DateRangeFields } from '../components/DateRangeFields'
 import { LlmInsightPanel } from '../components/LlmInsightPanel'
 import { PerformanceResultPanels } from '../components/PerformanceResultPanels'
@@ -35,7 +36,11 @@ export function CreativeDetailPage() {
     return buildCreativeFilters(advertiser.advertiser_id, creative.creative_id, dates)
   }, [advertiser, creative, dates.from, dates.to])
 
-  const { data, err } = usePerformanceSlice(filters, null)
+  const creativeSliceOpts = useMemo(
+    () => ({ extraBreakdowns: ['country', 'os', 'format'] as const }),
+    [],
+  )
+  const { data, err } = usePerformanceSlice(filters, null, creativeSliceOpts)
 
   const insightContext = useMemo(
     () =>
@@ -99,6 +104,26 @@ export function CreativeDetailPage() {
           <p className={explorerUi.subtitle}>
             {formatMetaLine(advertiser.label, `Creative #${creative.creative_id}`)}
           </p>
+          {creative.creative_status != null ||
+          creative.perf_score != null ||
+          creative.fatigue_day != null ||
+          creative.is_fatigued ? (
+            <div className="mt-3 max-w-xl rounded-md border border-stone-200 bg-stone-50 px-3 py-2 text-sm text-stone-800">
+              <p className="font-medium text-stone-900">Creative summary (seeded)</p>
+              <ul className="mt-1 list-inside list-disc space-y-0.5 text-stone-700">
+                {creative.creative_status != null ? (
+                  <li>
+                    Status: <span className="font-medium">{creative.creative_status.replace(/_/g, ' ')}</span>
+                    {creative.is_fatigued ? ' — flagged as fatigued in dataset' : ''}
+                  </li>
+                ) : null}
+                {creative.perf_score != null ? (
+                  <li>Performance score: {creative.perf_score.toFixed(3)} (0–1)</li>
+                ) : null}
+                {creative.fatigue_day != null ? <li>Fatigue day (label): day {creative.fatigue_day}</li> : null}
+              </ul>
+            </div>
+          ) : null}
         </div>
         <DateRangeFields dateRange={dateRange} dates={dates} onChange={setDates} />
       </div>
@@ -121,6 +146,7 @@ export function CreativeDetailPage() {
       <div className="relative z-10 min-h-0">
         <h2 className={explorerUi.performanceLabel}>{PERFORMANCE_SECTION.heading}</h2>
         <PerformanceResultPanels data={data} err={err} breakdownTitle={null} />
+        <CreativeCrossDimensionSection data={data} queryError={err} />
         <LlmInsightPanel context={insightContext} performanceError={err} />
       </div>
     </div>

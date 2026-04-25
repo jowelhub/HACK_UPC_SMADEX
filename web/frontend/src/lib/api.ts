@@ -15,8 +15,29 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return r.json() as Promise<T>
 }
 
-export type HierarchyCreative = { creative_id: number; slug: string; label: string; asset_file: string | null }
-export type HierarchyCampaign = { campaign_id: number; slug: string; label: string; creatives: HierarchyCreative[] }
+export type HierarchyCreative = {
+  creative_id: number
+  slug: string
+  label: string
+  asset_file: string | null
+  /** From `creative_summary.creative_status` when seeded. */
+  creative_status?: string | null
+  fatigue_day?: number | null
+  perf_score?: number | null
+  /** True when `creative_status === 'fatigued'` (dataset label). */
+  is_fatigued?: boolean
+}
+export type HierarchyCampaign = {
+  campaign_id: number
+  slug: string
+  label: string
+  creatives: HierarchyCreative[]
+  /** From `advertiser_campaign_rankings` (1 = best within advertiser). */
+  portfolio_rank?: number | null
+  portfolio_composite_score?: number | null
+  portfolio_health_score?: number | null
+  n_healthy_creatives?: number | null
+}
 export type HierarchyAdvertiser = {
   advertiser_id: number
   label: string
@@ -40,6 +61,8 @@ export async function fetchPerformanceQuery(payload: {
   filters: PerformanceFilters
   timeseries_grain?: string | null
   breakdown?: string | null
+  /** Multiple dimensions at once (e.g. country, os, format) from the daily fact table. */
+  breakdowns?: string[] | null
   leaderboard?: { by?: string; metric?: string; limit?: number } | null
   include_entity_rankings?: boolean
 }) {
@@ -48,6 +71,7 @@ export async function fetchPerformanceQuery(payload: {
     row_count: number
     timeseries?: Array<Record<string, unknown>>
     breakdown?: Array<Record<string, unknown>>
+    breakdowns?: Record<string, Array<Record<string, unknown>>>
     leaderboard?: Array<Record<string, unknown>>
     entity_rankings?: {
       advertisers: PerformanceEntityRow[]

@@ -1,6 +1,6 @@
 /** Injected into the getDatabaseSchema tool (Postgres, matches web/db/schema.sql + joins). */
 export const COMPACT_DB_SCHEMA = `
-Postgres: advertisers → campaigns → creatives → creative_daily_country_os_stats
+Postgres: public tables for delivery/entity CSVs (advertisers, campaigns, creatives, campaign_summary, creative_summary, advertiser_campaign_rankings, creative_daily_country_os_stats). data_dictionary.csv is not loaded; use the file in the repo for column glosses.
 
 TABLE advertisers (advertiser_id PK, advertiser_name, vertical, hq_region)
 
@@ -16,6 +16,18 @@ TABLE creatives (
   duration_sec, text_density, readability_score, brand_visibility_score, clutter_score, novelty_score, motion_score,
   faces_count, product_count, has_price, has_discount_badge, has_gameplay, has_ugc_style, asset_file
 )
+
+TABLE campaign_summary (campaign_id PK FK→campaigns, advertiser_id FK→advertisers):
+  Rolled-up totals (total_spend_usd, total_impressions, …), overall_ctr/cvr/roas, plus campaign metadata (app_name, vertical, dates, budget, kpi_goal).
+
+TABLE creative_summary (creative_id PK FK→creatives, campaign_id FK→campaigns):
+  Lifetime totals (total_spend_usd, total_impressions, …), overall_ctr/cvr/ipm/roas,
+  first_7d_* / last_7d_* decay metrics, creative_status (top_performer|stable|fatigued|underperformer),
+  fatigue_day (int, only for fatigued), perf_score (0–1), plus creative metadata columns mirroring creatives.
+
+TABLE advertiser_campaign_rankings (campaign_id PK FK→campaigns):
+  advertiser_name, rank_within_advertiser (1=best), composite_score, health_score, kpi_score, roas_score,
+  n_creatives, n_healthy, kpi_goal, kpi_value, overall_roas, ctr_pct, cvr_pct, totals, theme fields.
 
 TABLE creative_daily_country_os_stats (PK: date, creative_id, country, os):
   campaign_id, creative_id, date, country, os, days_since_launch,

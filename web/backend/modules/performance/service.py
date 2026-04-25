@@ -10,6 +10,9 @@ import pandas as pd
 
 from shared.store import DataStore
 
+# Extra dimensions allowed on POST /api/performance/query via ``breakdowns`` (multi slice).
+MULTI_BREAKDOWN_ALLOWLIST = frozenset({"country", "os", "format", "vertical"})
+
 NUMERIC_FILTER_COLUMNS = [
     "days_since_launch",
     "daily_budget_usd",
@@ -161,6 +164,64 @@ def _summary_block(sub: pd.DataFrame) -> dict[str, Any]:
     }
 
 
+def _breakdown_agg(sub: pd.DataFrame, breakdown: str, store: DataStore) -> list[dict[str, Any]]:
+    """Group filtered daily rows by one dimension (country, os, format, campaign_id, …)."""
+    if breakdown not in sub.columns or len(sub) == 0:
+        return []
+    g2 = sub.groupby(breakdown, as_index=False).agg(
+        spend_usd=("spend_usd", "sum"),
+        impressions=("impressions", "sum"),
+        viewable_impressions=("viewable_impressions", "sum"),
+        clicks=("clicks", "sum"),
+        conversions=("conversions", "sum"),
+        revenue_usd=("revenue_usd", "sum"),
+        video_completions=("video_completions", "sum"),
+    )
+    g2["ctr"] = g2.apply(lambda r: _safe_div(r["clicks"], r["impressions"]), axis=1)
+    g2["cvr"] = g2.apply(lambda r: _safe_div(r["conversions"], r["clicks"]), axis=1)
+    g2["ipm"] = g2.apply(lambda r: _safe_div(1000.0 * r["conversions"], r["impressions"]), axis=1)
+    g2["cpa_usd"] = g2.apply(lambda r: _safe_div(r["spend_usd"], r["conversions"]), axis=1)
+    g2["roas"] = g2.apply(lambda r: _safe_div(r["revenue_usd"], r["spend_usd"]), axis=1)
+    g2["viewability_rate"] = g2.apply(lambda r: _safe_div(r["viewable_impressions"], r["impressions"]), axis=1)
+    if breakdown == "campaign_id":
+        cmap = store.campaigns.set_index("campaign_id")
+        labels: list[str] = []
+        for _, r in g2.iterrows():
+            cid = int(r["campaign_id"])
+            if cid in cmap.index:
+                row = cmap.loc[cid]
+                ser = row if isinstance(row, pd.Series) else row.iloc[0]
+                labels.append(_campaign_display_label(ser))
+            else:
+                labels.append(str(cid))
+        g2 = g2.copy()
+        g2["label"] = labels
+    elif breakdown == "creative_id":
+        crmap = store.creatives.set_index("creative_id")
+        labels_cr: list[str] = []
+        for _, r in g2.iterrows():
+            crid = int(r["creative_id"])
+            if crid in crmap.index:
+                row = crmap.loc[crid]
+                ser = row if isinstance(row, pd.Series) else row.iloc[0]
+                labels_cr.append(_composite_creative_label(ser, store.campaigns))
+            else:
+                labels_cr.append(str(crid))
+        dup_counts = Counter(labels_cr)
+        if any(c > 1 for c in dup_counts.values()):
+            fixed: list[str] = []
+            for lbl, (_, r) in zip(labels_cr, g2.iterrows()):
+                crid = int(r["creative_id"])
+                fixed.append(lbl if dup_counts[lbl] <= 1 else f"{lbl} (#{crid})")
+            labels_cr = fixed
+        g2 = g2.copy()
+        g2["label"] = labels_cr
+    else:
+        g2 = g2.copy()
+        g2["label"] = g2[breakdown].map(lambda x: "" if pd.isna(x) else str(x))
+    return g2.to_dict(orient="records")
+
+
 def _agg_entity_block(agg_row: pd.Series) -> dict[str, Any]:
     spend = float(agg_row["spend_usd"])
     imps = int(agg_row["impressions"])
@@ -202,11 +263,26 @@ def _unique_slug(base: str, entity_id: int, used: set[str]) -> str:
     return slug
 
 
+def _series_for_id(idx: pd.DataFrame, key: Any) -> pd.Series | None:
+    """Single row as Series when using set_index(id); handles accidental duplicate index."""
+    if key not in idx.index:
+        return None
+    row = idx.loc[key]
+    if isinstance(row, pd.Series):
+        return row
+    return row.iloc[0] if len(row) > 0 else None
+
+
 def _build_hierarchy(store: DataStore) -> list[dict[str, Any]]:
     """Nested advertisers → campaigns → creatives for explorer UI."""
     adv = store.advertisers.sort_values("advertiser_id")
     camps = store.campaigns
     crs = store.creatives
+    rk = getattr(store, "campaign_rankings", pd.DataFrame())
+    cs = getattr(store, "creative_summary", pd.DataFrame())
+    rk_by_cid = rk.set_index("campaign_id") if len(rk) and "campaign_id" in rk.columns else None
+    cs_by_crid = cs.set_index("creative_id") if len(cs) and "creative_id" in cs.columns else None
+
     out: list[dict[str, Any]] = []
     used_slugs: set[str] = set()
     for _, a in adv.iterrows():
@@ -239,15 +315,45 @@ def _build_hierarchy(store: DataStore) -> list[dict[str, Any]]:
                     af_s = None
                 else:
                     af_s = str(af).strip() or None
-                crlist.append(
-                    {
-                        "creative_id": crid,
-                        "slug": crslug,
-                        "label": crlabel,
-                        "asset_file": af_s,
-                    }
-                )
-            camp_list.append({"campaign_id": cid, "slug": cslug, "label": clabel, "creatives": crlist})
+                cr_entry: dict[str, Any] = {
+                    "creative_id": crid,
+                    "slug": crslug,
+                    "label": crlabel,
+                    "asset_file": af_s,
+                    "creative_status": None,
+                    "fatigue_day": None,
+                    "perf_score": None,
+                    "is_fatigued": False,
+                }
+                if cs_by_crid is not None:
+                    srow = _series_for_id(cs_by_crid, crid)
+                    if srow is not None:
+                        st = str(srow.get("creative_status") or "").strip()
+                        cr_entry["creative_status"] = st or None
+                        fd = srow.get("fatigue_day")
+                        cr_entry["fatigue_day"] = int(fd) if pd.notna(fd) else None
+                        ps = srow.get("perf_score")
+                        cr_entry["perf_score"] = float(ps) if pd.notna(ps) else None
+                        cr_entry["is_fatigued"] = st == "fatigued"
+                crlist.append(cr_entry)
+            camp_entry: dict[str, Any] = {
+                "campaign_id": cid,
+                "slug": cslug,
+                "label": clabel,
+                "creatives": crlist,
+                "portfolio_rank": None,
+                "portfolio_composite_score": None,
+                "portfolio_health_score": None,
+                "n_healthy_creatives": None,
+            }
+            if rk_by_cid is not None:
+                rrow = _series_for_id(rk_by_cid, cid)
+                if rrow is not None:
+                    camp_entry["portfolio_rank"] = int(rrow["rank_within_advertiser"])
+                    camp_entry["portfolio_composite_score"] = float(rrow["composite_score"])
+                    camp_entry["portfolio_health_score"] = float(rrow["health_score"])
+                    camp_entry["n_healthy_creatives"] = int(rrow["n_healthy"])
+            camp_list.append(camp_entry)
         out.append(
             {
                 "advertiser_id": aid,
@@ -433,56 +539,21 @@ class PerformanceService:
             result["timeseries"] = g.to_dict(orient="records")
 
         if breakdown and breakdown in sub.columns and len(sub):
-            g2 = sub.groupby(breakdown, as_index=False).agg(
-                spend_usd=("spend_usd", "sum"),
-                impressions=("impressions", "sum"),
-                viewable_impressions=("viewable_impressions", "sum"),
-                clicks=("clicks", "sum"),
-                conversions=("conversions", "sum"),
-                revenue_usd=("revenue_usd", "sum"),
-                video_completions=("video_completions", "sum"),
-            )
-            g2["ctr"] = g2.apply(lambda r: _safe_div(r["clicks"], r["impressions"]), axis=1)
-            g2["cvr"] = g2.apply(lambda r: _safe_div(r["conversions"], r["clicks"]), axis=1)
-            g2["ipm"] = g2.apply(lambda r: _safe_div(1000.0 * r["conversions"], r["impressions"]), axis=1)
-            g2["cpa_usd"] = g2.apply(lambda r: _safe_div(r["spend_usd"], r["conversions"]), axis=1)
-            g2["roas"] = g2.apply(lambda r: _safe_div(r["revenue_usd"], r["spend_usd"]), axis=1)
-            g2["viewability_rate"] = g2.apply(lambda r: _safe_div(r["viewable_impressions"], r["impressions"]), axis=1)
-            if breakdown == "campaign_id":
-                cmap = self._store.campaigns.set_index("campaign_id")
-                labels: list[str] = []
-                for _, r in g2.iterrows():
-                    cid = int(r["campaign_id"])
-                    if cid in cmap.index:
-                        row = cmap.loc[cid]
-                        ser = row if isinstance(row, pd.Series) else row.iloc[0]
-                        labels.append(_campaign_display_label(ser))
-                    else:
-                        labels.append(str(cid))
-                g2 = g2.copy()
-                g2["label"] = labels
-            elif breakdown == "creative_id":
-                crmap = self._store.creatives.set_index("creative_id")
-                labels_cr: list[str] = []
-                for _, r in g2.iterrows():
-                    crid = int(r["creative_id"])
-                    if crid in crmap.index:
-                        row = crmap.loc[crid]
-                        ser = row if isinstance(row, pd.Series) else row.iloc[0]
-                        labels_cr.append(_composite_creative_label(ser, self._store.campaigns))
-                    else:
-                        labels_cr.append(str(crid))
-                # Disambiguate duplicate headlines in the same chart (same label, different creatives).
-                dup_counts = Counter(labels_cr)
-                if any(c > 1 for c in dup_counts.values()):
-                    fixed: list[str] = []
-                    for lbl, (_, r) in zip(labels_cr, g2.iterrows()):
-                        crid = int(r["creative_id"])
-                        fixed.append(lbl if dup_counts[lbl] <= 1 else f"{lbl} (#{crid})")
-                    labels_cr = fixed
-                g2 = g2.copy()
-                g2["label"] = labels_cr
-            result["breakdown"] = g2.to_dict(orient="records")
+            result["breakdown"] = _breakdown_agg(sub, breakdown, self._store)
+
+        bd_list = body.get("breakdowns")
+        if isinstance(bd_list, list) and bd_list:
+            out_m: dict[str, list[dict[str, Any]]] = {}
+            seen: set[str] = set()
+            for b in bd_list[:8]:
+                if not isinstance(b, str) or b not in MULTI_BREAKDOWN_ALLOWLIST or b in seen:
+                    continue
+                seen.add(b)
+                rows = _breakdown_agg(sub, b, self._store)
+                if rows:
+                    out_m[b] = rows
+            if out_m:
+                result["breakdowns"] = out_m
 
         if leaderboard:
             by = leaderboard.get("by", "creative_id")
