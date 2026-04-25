@@ -497,37 +497,41 @@ export function PerformancePage() {
         {summary ? (
           <>
             <div
-              className={`mb-5 flex flex-col gap-4 ${showMetricsTopRight ? 'lg:flex-row lg:items-stretch lg:gap-6' : ''}`}
+              className={`mb-5 flex flex-col gap-4 ${showMetricsTopRight ? 'lg:flex-row lg:items-stretch lg:gap-4 xl:gap-6' : ''}`}
             >
               <div
-                className={`grid min-w-0 grid-cols-2 gap-3 ${showMetricsTopRight ? 'lg:min-w-0 lg:flex-1' : ''}`}
+                className={`grid min-w-0 grid-cols-2 gap-2 sm:gap-2.5 ${
+                  showMetricsTopRight
+                    ? 'w-full shrink-0 lg:max-w-[min(24rem,36vw)] xl:max-w-[min(26rem,32vw)]'
+                    : ''
+                }`}
               >
-                <MetricCard label="Spend (USD)" value={fmt(summary.total_spend_usd, 0)} />
-                <MetricCard label="Impressions" value={fmt(summary.total_impressions, 0)} />
-                <MetricCard label="Clicks" value={fmt(summary.total_clicks as number, 0)} />
-                <MetricCard label="Conversions" value={fmt(summary.total_conversions as number, 0)} />
-                <MetricCard label="Revenue (USD)" value={fmt(summary.total_revenue_usd as number)} />
-                <MetricCard label="Viewability" value={fmtPct(summary.overall_viewability_rate as number)} />
-                <MetricCard label="CTR" value={fmtPct(summary.overall_ctr as number)} />
-                <MetricCard label="CPA (USD)" value={fmt(summary.overall_cpa_usd as number)} />
-                <MetricCard label="CVR" value={fmtPct(summary.overall_cvr as number)} />
-                <MetricCard label="IPM" value={fmt(summary.overall_ipm as number)} />
-                <MetricCard label="ROAS" value={fmt(summary.overall_roas as number)} />
-                <MetricCard label="Rows" value={fmt(data?.row_count, 0)} />
+                <MetricCard compact={showMetricsTopRight} label="Spend (USD)" value={fmt(summary.total_spend_usd, 0)} />
+                <MetricCard compact={showMetricsTopRight} label="Impressions" value={fmt(summary.total_impressions, 0)} />
+                <MetricCard compact={showMetricsTopRight} label="Clicks" value={fmt(summary.total_clicks as number, 0)} />
+                <MetricCard compact={showMetricsTopRight} label="Conversions" value={fmt(summary.total_conversions as number, 0)} />
+                <MetricCard compact={showMetricsTopRight} label="Revenue (USD)" value={fmt(summary.total_revenue_usd as number)} />
+                <MetricCard compact={showMetricsTopRight} label="Viewability" value={fmtPct(summary.overall_viewability_rate as number)} />
+                <MetricCard compact={showMetricsTopRight} label="CTR" value={fmtPct(summary.overall_ctr as number)} />
+                <MetricCard compact={showMetricsTopRight} label="CPA (USD)" value={fmt(summary.overall_cpa_usd as number)} />
+                <MetricCard compact={showMetricsTopRight} label="CVR" value={fmtPct(summary.overall_cvr as number)} />
+                <MetricCard compact={showMetricsTopRight} label="IPM" value={fmt(summary.overall_ipm as number)} />
+                <MetricCard compact={showMetricsTopRight} label="ROAS" value={fmt(summary.overall_roas as number)} />
+                <MetricCard compact={showMetricsTopRight} label="Rows" value={fmt(data?.row_count, 0)} />
               </div>
 
               {showMetricsTopRight ? (
-                <div className="flex min-h-0 w-full shrink-0 flex-col gap-4 sm:mx-auto sm:max-w-md lg:mx-0 lg:w-[min(38%,380px)] lg:max-w-[380px]">
+                <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-4 max-lg:mx-auto max-lg:max-w-lg lg:mx-0">
                   {hasBreakdownChart ? (
-                    <div className="surface-panel flex min-h-0 flex-col">
-                      <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                    <div className="surface-panel flex min-h-0 min-w-0 flex-1 flex-col">
+                      <div className="mb-2 flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
                         <h3 className="text-sm font-semibold text-stone-900">
                           {scope.kind === 'advertiser' ? 'By campaign' : 'By creative'}
                         </h3>
-                        <label className="flex items-center gap-1 text-xs text-stone-600">
-                          <span className="text-stone-500">Metric</span>
+                        <label className="flex min-w-0 items-center gap-1 text-xs text-stone-600">
+                          <span className="shrink-0 text-stone-500">Metric</span>
                           <select
-                            className="input py-1 text-xs"
+                            className="input max-w-full py-1 text-xs"
                             value={barMetric}
                             onChange={(e) => setBarMetric(e.target.value as MetricKey)}
                           >
@@ -539,45 +543,47 @@ export function PerformancePage() {
                           </select>
                         </label>
                       </div>
-                      <div className="mt-1 h-72 w-full shrink-0">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <BarChart
-                            data={barData}
-                            layout="vertical"
-                            margin={{ left: 2, right: 10, top: 4, bottom: 4 }}
-                          >
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" horizontal={false} />
-                            <XAxis
-                              type="number"
-                              tick={{ fill: '#78716c', fontSize: 10 }}
-                              tickFormatter={(v) => formatMetricTick(barMetric, Number(v))}
-                            />
-                            <YAxis
-                              type="category"
-                              dataKey="name"
-                              width={100}
-                              tick={{ fill: '#57534e', fontSize: 9 }}
-                              interval={0}
-                            />
-                            <Tooltip
-                              {...chartTooltip}
-                              formatter={(v) => [formatMetricValue(barMetric, Number(v)), metricLabel(barMetric)]}
-                            />
-                            <Bar dataKey="v" name={metricLabel(barMetric)} fill="#7c3aad" radius={[0, 2, 2, 0]} />
-                          </BarChart>
-                        </ResponsiveContainer>
+                      <div className="mt-1 min-h-[12rem] w-full min-w-0 flex-1 sm:min-h-[14rem]">
+                        <div className="h-[min(18rem,45dvh)] w-full sm:h-[min(20rem,42dvh)] lg:h-[min(22rem,48dvh)] xl:h-[min(26rem,52vh)]">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart
+                              data={barData}
+                              layout="vertical"
+                              margin={{ left: 2, right: 8, top: 4, bottom: 4 }}
+                            >
+                              <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" horizontal={false} />
+                              <XAxis
+                                type="number"
+                                tick={{ fill: '#78716c', fontSize: 10 }}
+                                tickFormatter={(v) => formatMetricTick(barMetric, Number(v))}
+                              />
+                              <YAxis
+                                type="category"
+                                dataKey="name"
+                                width={108}
+                                tick={{ fill: '#57534e', fontSize: 9 }}
+                                interval={0}
+                              />
+                              <Tooltip
+                                {...chartTooltip}
+                                formatter={(v) => [formatMetricValue(barMetric, Number(v)), metricLabel(barMetric)]}
+                              />
+                              <Bar dataKey="v" name={metricLabel(barMetric)} fill="#7c3aad" radius={[0, 2, 2, 0]} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
                       </div>
                     </div>
                   ) : null}
 
                   {hasCreativePreview ? (
-                    <div className="flex shrink-0 justify-center border border-stone-200 bg-white p-3">
-                      <div className="flex min-h-[10rem] w-full max-w-[280px] items-center justify-center lg:min-h-[14rem]">
+                    <div className="flex min-h-0 min-w-0 flex-1 justify-center border border-stone-200 bg-white p-2 sm:p-3">
+                      <div className="flex min-h-[12rem] w-full max-w-full items-center justify-center sm:min-h-[14rem] lg:min-h-[min(18rem,30dvh)]">
                         {creativeAssetOk ? (
                           <img
                             src={creativeAssetUrl(scope.creativeId)}
                             alt="Creative"
-                            className="max-h-64 w-full object-contain sm:max-h-80 lg:max-h-[min(56vh,520px)]"
+                            className="h-auto max-h-[min(52dvh,28rem)] w-full max-w-full object-contain sm:max-h-[min(50dvh,30rem)] lg:max-h-[min(62dvh,36rem)] xl:max-h-[min(65dvh,40rem)]"
                             onError={() => setCreativeAssetOk(false)}
                           />
                         ) : (
@@ -632,7 +638,7 @@ export function PerformancePage() {
                   </label>
                 </div>
               </div>
-              <div className="mt-1 h-64 sm:h-72">
+              <div className="mt-1 h-[min(16rem,42dvh)] sm:h-[min(18rem,40dvh)] lg:h-72 xl:h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={ts}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
