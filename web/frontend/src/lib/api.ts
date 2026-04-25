@@ -1,3 +1,5 @@
+import { apiPaths } from './apiPaths'
+
 export type PerformanceFilters = Record<string, unknown>
 
 async function post<T>(path: string, body: unknown): Promise<T> {
@@ -13,31 +15,25 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return r.json() as Promise<T>
 }
 
-export type HierarchyCreative = { creative_id: number; label: string; asset_file: string | null }
-export type HierarchyCampaign = { campaign_id: number; label: string; creatives: HierarchyCreative[] }
+export type HierarchyCreative = { creative_id: number; slug: string; label: string; asset_file: string | null }
+export type HierarchyCampaign = { campaign_id: number; slug: string; label: string; creatives: HierarchyCreative[] }
 export type HierarchyAdvertiser = {
   advertiser_id: number
   label: string
+  slug: string
   vertical?: string | null
   hq_region?: string | null
   campaigns: HierarchyCampaign[]
 }
 
-/** Drill-down scope for performance filters and breakdowns. */
-export type PerformanceScope =
-  | { kind: 'all' }
-  | { kind: 'advertiser'; advertiserId: number }
-  | { kind: 'campaign'; advertiserId: number; campaignId: number }
-  | { kind: 'creative'; advertiserId: number; campaignId: number; creativeId: number }
-
 export async function fetchPerformanceHierarchy() {
-  const r = await fetch('/api/performance/hierarchy')
+  const r = await fetch(apiPaths.performanceHierarchy)
   if (!r.ok) throw new Error(await r.text())
   return r.json() as Promise<{ advertisers: HierarchyAdvertiser[] }>
 }
 
 export function creativeAssetUrl(creativeId: number) {
-  return `/api/creatives/${creativeId}/asset`
+  return apiPaths.creativeAsset(creativeId)
 }
 
 export async function fetchPerformanceQuery(payload: {
@@ -58,8 +54,10 @@ export async function fetchPerformanceQuery(payload: {
       campaigns: PerformanceEntityRow[]
       creatives: PerformanceEntityRow[]
     }
-  }>('/api/performance/query', payload)
+  }>(apiPaths.performanceQuery, payload)
 }
+
+export type PerformanceQueryResponse = Awaited<ReturnType<typeof fetchPerformanceQuery>>
 
 export type PerformanceEntityRow = {
   label: string
@@ -79,58 +77,5 @@ export type PerformanceEntityRow = {
 }
 
 export async function fetchFilterOptions(filters: PerformanceFilters) {
-  return post<{ options: Record<string, unknown> }>('/api/performance/filter-options', { filters })
-}
-
-export async function fetchFatigueCreativeIds(): Promise<number[]> {
-  const r = await fetch('/api/fatigue/creative-ids')
-  if (!r.ok) throw new Error(await r.text())
-  const j = (await r.json()) as { creative_ids: number[] }
-  return j.creative_ids ?? []
-}
-
-export type FatigueMLStatus = {
-  trained: boolean
-  best_params?: Record<string, unknown>
-  test_metrics?: { rmse: number; mae: number; r2: number }
-  n_features?: number
-}
-
-export async function fetchFatigueMLStatus(): Promise<FatigueMLStatus> {
-  const r = await fetch('/api/fatigue/ml/status')
-  if (!r.ok) throw new Error(await r.text())
-  return r.json() as Promise<FatigueMLStatus>
-}
-
-export type MLCurvePoint = {
-  days_since_launch: number
-  actual_ctr: number
-  predicted_ctr: number
-}
-
-export async function fetchFatigueMLPredictCurve(creativeId: number) {
-  const r = await fetch(`/api/fatigue/ml/predict-curve/${creativeId}`)
-  if (!r.ok) throw new Error(await r.text())
-  return r.json() as Promise<{ creative_id: number; trained: boolean; series: MLCurvePoint[] }>
-}
-
-export async function fetchRecommendations(filters: PerformanceFilters) {
-  return post<{ items: RecommendationRow[] }>('/api/recommendations/list', { filters })
-}
-
-export type RecommendationRow = {
-  creative_id: number
-  campaign_id: number
-  advertiser_name?: string
-  app_name?: string
-  format?: string
-  theme?: string
-  creative_status?: string
-  health_score: number
-  overall_roas: number
-  action: string
-  reason: string
-  confidence: number
-  urgency: number
-  rotate_to_creative_id?: number | null
+  return post<{ options: Record<string, unknown> }>(apiPaths.performanceFilterOptions, { filters })
 }

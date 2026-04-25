@@ -17,6 +17,17 @@ body {
   @apply bg-canvas text-stone-800 antialiased;
 }
 
+/* Scrollable areas without visible scrollbars (wheel / touch / keys still work) */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+*::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  background: transparent;
+}
+
 @layer components {
   .surface-panel {
     @apply rounded-md border border-stone-200 bg-white p-3 sm:p-4;

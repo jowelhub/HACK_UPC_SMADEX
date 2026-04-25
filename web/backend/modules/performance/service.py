@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 import pandas as pd
@@ -179,24 +180,58 @@ def _agg_entity_block(agg_row: pd.Series) -> dict[str, Any]:
     }
 
 
+def _slugify(text: str, *, empty_fallback: str = "entity") -> str:
+    """Lowercase URL slug from arbitrary display text."""
+    s = re.sub(r"[^a-z0-9]+", "-", str(text or "").strip().lower())
+    s = re.sub(r"-+", "-", s).strip("-")
+    return s or empty_fallback
+
+
+def _slugify_label(label: str, fallback_id: int, prefix: str) -> str:
+    """URL segment from a display label; guaranteed non-empty."""
+    base = _slugify(label, empty_fallback="")
+    return base or f"{prefix}-{int(fallback_id)}"
+
+
+def _unique_slug(base: str, entity_id: int, used: set[str]) -> str:
+    slug = base
+    if slug in used:
+        slug = f"{base}-{int(entity_id)}"
+    used.add(slug)
+    return slug
+
+
 def _build_hierarchy(store: DataStore) -> list[dict[str, Any]]:
     """Nested advertisers → campaigns → creatives for explorer UI."""
     adv = store.advertisers.sort_values("advertiser_id")
     camps = store.campaigns
     crs = store.creatives
     out: list[dict[str, Any]] = []
+    used_slugs: set[str] = set()
     for _, a in adv.iterrows():
         aid = int(a["advertiser_id"])
         name = str(a.get("advertiser_name") or aid)
+        base_slug = _slugify(name, empty_fallback="advertiser")
+        slug = base_slug
+        if slug in used_slugs:
+            slug = f"{base_slug}-{aid}"
+        used_slugs.add(slug)
         sub_c = camps[camps["advertiser_id"] == aid].sort_values("campaign_id")
         camp_list: list[dict[str, Any]] = []
+        used_campaign_slugs: set[str] = set()
         for _, c in sub_c.iterrows():
             cid = int(c["campaign_id"])
             clabel = _campaign_display_label(c)
+            cbase = _slugify_label(clabel, cid, "campaign")
+            cslug = _unique_slug(cbase, cid, used_campaign_slugs)
             sub_cr = crs[crs["campaign_id"] == cid].sort_values("creative_id")
             crlist: list[dict[str, Any]] = []
+            used_creative_slugs: set[str] = set()
             for _, cr in sub_cr.iterrows():
                 crid = int(cr["creative_id"])
+                crlabel = _composite_creative_label(cr, camps)
+                crbase = _slugify_label(crlabel, crid, "creative")
+                crslug = _unique_slug(crbase, crid, used_creative_slugs)
                 af = cr.get("asset_file")
                 af_s: str | None
                 if af is None or (isinstance(af, float) and pd.isna(af)):
@@ -206,15 +241,17 @@ def _build_hierarchy(store: DataStore) -> list[dict[str, Any]]:
                 crlist.append(
                     {
                         "creative_id": crid,
-                        "label": _composite_creative_label(cr, camps),
+                        "slug": crslug,
+                        "label": crlabel,
                         "asset_file": af_s,
                     }
                 )
-            camp_list.append({"campaign_id": cid, "label": clabel, "creatives": crlist})
+            camp_list.append({"campaign_id": cid, "slug": cslug, "label": clabel, "creatives": crlist})
         out.append(
             {
                 "advertiser_id": aid,
                 "label": name,
+                "slug": slug,
                 "vertical": str(a.get("vertical") or "") or None,
                 "hq_region": str(a.get("hq_region") or "") or None,
                 "campaigns": camp_list,

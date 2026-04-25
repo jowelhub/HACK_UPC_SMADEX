@@ -201,7 +201,7 @@ export function ChatPage() {
       {/* Thread: only this region scrolls */}
       <div className="relative min-h-0 min-w-0 flex-1">
         <div
-          className="h-full min-h-0 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] [-webkit-overflow-scrolling:touch] pt-2 pl-0 sm:pt-3"
+          className="h-full min-h-0 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch] pt-2 pl-0 sm:pt-3"
           role="log"
           aria-live="polite"
         >
