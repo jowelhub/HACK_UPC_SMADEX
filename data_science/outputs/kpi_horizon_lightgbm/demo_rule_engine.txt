@@ -1,0 +1,4 @@
+creative_id=500000 campaign_id=20000 kpi_goal=CPA
+health@h7=0.7923 pred_metric@T+7=19.5744 current=15.5087
+action=WATCH
+Mild decay vs peak prediction; monitor over the next few days.
