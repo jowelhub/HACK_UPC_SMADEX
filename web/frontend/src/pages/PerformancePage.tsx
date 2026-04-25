@@ -1,21 +1,29 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
-import { MetricCard } from '../components/MetricCard'
-import type { LabeledOption } from '../components/MultiSelect'
-import { MultiSelect } from '../components/MultiSelect'
 import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts'
+import { MetricCard } from '../components/MetricCard'
+import {
+  creativeAssetUrl,
   fetchFilterOptions,
+  fetchPerformanceHierarchy,
   fetchPerformanceQuery,
-  type PerformanceEntityRow,
+  type HierarchyAdvertiser,
+  type HierarchyCampaign,
+  type HierarchyCreative,
   type PerformanceFilters,
+  type PerformanceScope,
 } from '../lib/api'
 
-function idListSignature(v: unknown): string {
-  if (!Array.isArray(v) || v.length === 0) return ''
-  return [...v].map(String).sort().join(',')
-}
-
-/** Clamp YYYY-MM-DD to dataset bounds (inclusive). */
 function clampIsoDate(ymd: string, min?: string, max?: string): string {
   let v = ymd
   if (min && v < min) v = min
@@ -33,258 +41,81 @@ function fmtPct(n: number | null | undefined) {
   return `${(n * 100).toFixed(2)}%`
 }
 
-const TS_RIGHT_METRICS = [
-  { key: 'spend_usd', label: 'Spend (USD)', stroke: '#5e2d87', fmt: (v: number) => fmt(v, 0) },
-  { key: 'conversions', label: 'Conversions', stroke: '#b45309', fmt: (v: number) => fmt(v, 0) },
-  { key: 'revenue_usd', label: 'Revenue (USD)', stroke: '#047857', fmt: (v: number) => fmt(v, 0) },
-  { key: 'ipm', label: 'IPM', stroke: '#0d9488', fmt: (v: number) => fmt(v, 2) },
-] as const
-
-type TsRightKey = (typeof TS_RIGHT_METRICS)[number]['key']
-
-type EntitySortKey =
-  | 'name'
-  | 'spend_usd'
-  | 'impressions'
-  | 'clicks'
-  | 'ctr'
-  | 'conversions'
-  | 'revenue_usd'
-  | 'cpa_usd'
-  | 'roas'
-  | 'cvr'
-  | 'ipm'
-
-function entityRowId(r: PerformanceEntityRow): string {
-  if (r.advertiser_id != null) return `a-${r.advertiser_id}`
-  if (r.campaign_id != null) return `c-${r.campaign_id}`
-  if (r.creative_id != null) return `cr-${r.creative_id}`
-  return r.label
-}
-
-function entitySortValue(r: PerformanceEntityRow, key: EntitySortKey): number | string | null {
-  switch (key) {
-    case 'name':
-      return r.label.toLowerCase()
-    case 'spend_usd':
-      return r.spend_usd
-    case 'impressions':
-      return r.impressions
-    case 'clicks':
-      return r.clicks
-    case 'ctr':
-      return r.ctr ?? null
-    case 'conversions':
-      return r.conversions
-    case 'revenue_usd':
-      return r.revenue_usd
-    case 'cpa_usd':
-      return r.cpa_usd ?? null
-    case 'roas':
-      return r.roas ?? null
-    case 'cvr':
-      return r.cvr ?? null
-    case 'ipm':
-      return r.ipm ?? null
-    default:
-      return null
+function filtersForScope(scope: PerformanceScope, dates: { from: string; to: string }): PerformanceFilters {
+  const base: PerformanceFilters = { date_from: dates.from, date_to: dates.to }
+  if (scope.kind === 'all') return base
+  if (scope.kind === 'advertiser') return { ...base, advertiser_ids: [scope.advertiserId] }
+  if (scope.kind === 'campaign')
+    return { ...base, advertiser_ids: [scope.advertiserId], campaign_ids: [scope.campaignId] }
+  return {
+    ...base,
+    advertiser_ids: [scope.advertiserId],
+    campaign_ids: [scope.campaignId],
+    creative_ids: [scope.creativeId],
   }
 }
 
-/** Lower CPA / alphabetical name first when ascending; higher spend/ROAS first when descending. */
-function defaultSortDir(key: EntitySortKey): 'asc' | 'desc' {
-  if (key === 'cpa_usd' || key === 'name') return 'asc'
-  return 'desc'
+function breakdownForScope(scope: PerformanceScope): string | null {
+  if (scope.kind === 'advertiser') return 'campaign_id'
+  if (scope.kind === 'campaign') return 'creative_id'
+  return null
 }
 
-function compareEntityRows(a: PerformanceEntityRow, b: PerformanceEntityRow, key: EntitySortKey, dir: 'asc' | 'desc'): number {
-  const va = entitySortValue(a, key)
-  const vb = entitySortValue(b, key)
-
-  if (va === null && vb === null) return 0
-  if (va === null) return 1
-  if (vb === null) return -1
-
-  const mul = dir === 'asc' ? 1 : -1
-
-  if (typeof va === 'string' && typeof vb === 'string') {
-    return va.localeCompare(vb, undefined, { sensitivity: 'base' }) * mul
-  }
-  const na = Number(va)
-  const nb = Number(vb)
-  if (Number.isNaN(na) && Number.isNaN(nb)) return 0
-  if (Number.isNaN(na)) return 1
-  if (Number.isNaN(nb)) return -1
-  return (na - nb) * mul
-}
-
-function SortTh({
-  label,
-  sortKey,
-  align,
-  current,
-  onPick,
-}: {
-  label: string
-  sortKey: EntitySortKey
-  align: 'left' | 'right'
-  current: { key: EntitySortKey; dir: 'asc' | 'desc' }
-  onPick: (key: EntitySortKey) => void
-}) {
-  const active = current.key === sortKey
-  const arrow = !active ? '' : current.dir === 'asc' ? ' ↑' : ' ↓'
-  return (
-    <th
-      className={`py-2 font-medium ${align === 'right' ? 'pr-2' : 'pr-3'} text-stone-500`}
-      aria-sort={active ? (current.dir === 'asc' ? 'ascending' : 'descending') : undefined}
-    >
-      <div className={align === 'right' ? 'flex justify-end' : ''}>
-        <button
-          type="button"
-          onClick={() => onPick(sortKey)}
-          className={`inline-flex max-w-full items-center gap-0.5 rounded px-0.5 hover:text-brand focus-visible:outline focus-visible:ring-2 focus-visible:ring-brand/25 ${align === 'right' ? 'text-right' : 'text-left'} ${active ? 'text-brand' : ''}`}
-        >
-          <span className="tabular-nums">
-            {label}
-            {arrow}
-          </span>
-        </button>
-      </div>
-    </th>
-  )
-}
-
-function TopEntityTable({ title, rows }: { title: string; rows: PerformanceEntityRow[] }) {
-  const [sort, setSort] = useState<{ key: EntitySortKey; dir: 'asc' | 'desc' }>({ key: 'spend_usd', dir: 'desc' })
-
-  useEffect(() => {
-    setSort({ key: 'spend_usd', dir: 'desc' })
-  }, [rows])
-
-  const sorted = useMemo(() => {
-    if (rows.length < 2) return rows
-    return [...rows].sort((a, b) => compareEntityRows(a, b, sort.key, sort.dir))
-  }, [rows, sort])
-
-  const onPick = (key: EntitySortKey) => {
-    setSort((s) => (s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: defaultSortDir(key) }))
-  }
-
-  if (rows.length < 2) return null
-  return (
-    <div className="surface-panel min-w-0">
-      <h3 className="font-display text-sm font-semibold text-brand">{title}</h3>
-      <p className="mt-0.5 text-xs text-stone-600">
-        Same date range and filters as the summary. Click a column to sort; CPA and name default low→high / A→Z.
-      </p>
-      <div className="mt-3 overflow-x-auto">
-        <table className="w-full min-w-[40rem] border-collapse text-left text-xs">
-          <thead>
-            <tr className="border-b border-stone-200">
-              <th className="py-2 pr-2 font-medium text-stone-500">#</th>
-              <SortTh label="Name" sortKey="name" align="left" current={sort} onPick={onPick} />
-              <SortTh label="Spend" sortKey="spend_usd" align="right" current={sort} onPick={onPick} />
-              <SortTh label="Impr." sortKey="impressions" align="right" current={sort} onPick={onPick} />
-              <SortTh label="Clicks" sortKey="clicks" align="right" current={sort} onPick={onPick} />
-              <SortTh label="CTR" sortKey="ctr" align="right" current={sort} onPick={onPick} />
-              <SortTh label="Conv." sortKey="conversions" align="right" current={sort} onPick={onPick} />
-              <SortTh label="Rev." sortKey="revenue_usd" align="right" current={sort} onPick={onPick} />
-              <SortTh label="CPA" sortKey="cpa_usd" align="right" current={sort} onPick={onPick} />
-              <SortTh label="ROAS" sortKey="roas" align="right" current={sort} onPick={onPick} />
-              <SortTh label="CVR" sortKey="cvr" align="right" current={sort} onPick={onPick} />
-              <SortTh label="IPM" sortKey="ipm" align="right" current={sort} onPick={onPick} />
-            </tr>
-          </thead>
-          <tbody className="text-stone-700">
-            {sorted.map((r, i) => (
-              <tr key={entityRowId(r)} className="border-b border-stone-100 last:border-0">
-                <td className="py-2 pr-2 text-stone-500">{i + 1}</td>
-                <td className="max-w-[12rem] truncate py-2 pr-3" title={r.label}>
-                  {r.label}
-                </td>
-                <td className="py-2 pr-2 text-right tabular-nums">{fmt(r.spend_usd, 0)}</td>
-                <td className="py-2 pr-2 text-right tabular-nums">{fmt(r.impressions, 0)}</td>
-                <td className="py-2 pr-2 text-right tabular-nums">{fmt(r.clicks, 0)}</td>
-                <td className="py-2 pr-2 text-right tabular-nums">{fmtPct(r.ctr)}</td>
-                <td className="py-2 pr-2 text-right tabular-nums">{fmt(r.conversions, 0)}</td>
-                <td className="py-2 pr-2 text-right tabular-nums">{fmt(r.revenue_usd, 0)}</td>
-                <td className="py-2 pr-2 text-right tabular-nums">{fmt(r.cpa_usd ?? undefined)}</td>
-                <td className="py-2 pr-2 text-right tabular-nums">{fmt(r.roas ?? undefined)}</td>
-                <td className="py-2 pr-2 text-right tabular-nums">{fmtPct(r.cvr)}</td>
-                <td className="py-2 text-right tabular-nums">{fmt(r.ipm ?? undefined, 3)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  )
-}
-
-function optionsForChip(
-  o: Record<string, unknown> | null,
-  optKey: string,
-  labeledKey?: string,
-): (string | number)[] | LabeledOption[] {
-  if (!o) return []
-  if (labeledKey) {
-    const labeled = o[labeledKey] as LabeledOption[] | undefined
-    if (labeled && Array.isArray(labeled) && labeled.length > 0) return labeled
-  }
-  const raw = o[optKey]
-  return Array.isArray(raw) ? (raw as (string | number)[]) : []
+function pickListBtn(active: boolean) {
+  return `w-full rounded-xl border px-3 py-2.5 text-left text-sm font-medium transition ${
+    active
+      ? 'border-brand bg-brand text-white shadow-sm ring-2 ring-brand/20'
+      : 'border-stone-200 bg-white text-stone-800 hover:border-brand/35 hover:bg-stone-50'
+  }`
 }
 
 export function PerformancePage() {
+  const [hierarchy, setHierarchy] = useState<HierarchyAdvertiser[] | null>(null)
   const [opts, setOpts] = useState<Record<string, unknown> | null>(null)
-  const [filters, setFilters] = useState<PerformanceFilters>({})
+  const [scope, setScope] = useState<PerformanceScope>({ kind: 'all' })
+  const [dates, setDates] = useState<{ from: string; to: string }>({ from: '', to: '' })
   const [err, setErr] = useState<string | null>(null)
   const [data, setData] = useState<Awaited<ReturnType<typeof fetchPerformanceQuery>> | null>(null)
-  const [tsRightAxis, setTsRightAxis] = useState<TsRightKey>('spend_usd')
+  const [creativeAssetOk, setCreativeAssetOk] = useState(true)
 
   useEffect(() => {
-    void fetchFilterOptions(filters)
-      .then((o) => setOpts(o.options))
+    void fetchPerformanceHierarchy()
+      .then((h) => setHierarchy(h.advertisers))
       .catch((e) => setErr(String(e)))
-  }, [filters])
+  }, [])
 
   const dateRange = opts?.date_range as { min?: string; max?: string } | undefined
 
   useEffect(() => {
+    void fetchFilterOptions({})
+      .then((o) => setOpts(o.options))
+      .catch((e) => setErr(String(e)))
+  }, [])
+
+  useEffect(() => {
     if (!dateRange?.min || !dateRange?.max) return
-    setFilters((f) => {
-      if (f.date_from && f.date_to) return f
-      return { ...f, date_from: dateRange.min, date_to: dateRange.max }
+    setDates((d) => {
+      if (d.from && d.to) return d
+      return { from: dateRange.min!, to: dateRange.max! }
     })
   }, [dateRange?.min, dateRange?.max])
 
-  useEffect(() => {
-    if (!opts) return
-    const validCampaigns = new Set((opts.campaign_id as (string | number)[] | undefined)?.map(String) ?? [])
-    const validCreatives = new Set((opts.creative_id as (string | number)[] | undefined)?.map(String) ?? [])
-    setFilters((f) => {
-      const campRaw = f.campaign_ids as (string | number)[] | undefined
-      const creRaw = f.creative_ids as (string | number)[] | undefined
-      const nextCamp =
-        Array.isArray(campRaw) && campRaw.length ? campRaw.filter((id) => validCampaigns.has(String(id))) : undefined
-      const nextCre = Array.isArray(creRaw) && creRaw.length ? creRaw.filter((id) => validCreatives.has(String(id))) : undefined
-      const campFinal = nextCamp?.length ? nextCamp : undefined
-      const creFinal = nextCre?.length ? nextCre : undefined
-      if (idListSignature(f.campaign_ids) === idListSignature(campFinal) && idListSignature(f.creative_ids) === idListSignature(creFinal)) {
-        return f
-      }
-      return { ...f, campaign_ids: campFinal, creative_ids: creFinal }
-    })
-  }, [opts])
+  const filters = useMemo(() => {
+    if (!dates.from || !dates.to) return null
+    return filtersForScope(scope, dates)
+  }, [scope, dates])
 
   useEffect(() => {
+    if (!filters) return
     let cancelled = false
     setErr(null)
+    const bd = breakdownForScope(scope)
     void fetchPerformanceQuery({
       filters,
       timeseries_grain: 'day',
-      breakdown: null,
+      breakdown: bd,
       leaderboard: null,
+      include_entity_rankings: false,
     })
       .then((res) => {
         if (!cancelled) setData(res)
@@ -297,329 +128,306 @@ export function PerformancePage() {
     }
   }, [filters])
 
+  useEffect(() => {
+    setCreativeAssetOk(true)
+  }, [scope])
+
+  const selectedAdvertiser: HierarchyAdvertiser | null = useMemo(() => {
+    if (scope.kind === 'all') return null
+    return hierarchy?.find((a) => a.advertiser_id === scope.advertiserId) ?? null
+  }, [hierarchy, scope])
+
+  const selectedCampaign: HierarchyCampaign | null = useMemo(() => {
+    if (scope.kind === 'all' || scope.kind === 'advertiser') return null
+    return selectedAdvertiser?.campaigns.find((c) => c.campaign_id === scope.campaignId) ?? null
+  }, [selectedAdvertiser, scope])
+
+  const creatives: HierarchyCreative[] = selectedCampaign?.creatives ?? []
+
   const summary = data?.summary
-  const rankings = data?.entity_rankings
+  const ts = data?.timeseries ?? []
+  const breakdownRaw = data?.breakdown ?? []
 
-  const ts = useMemo(() => data?.timeseries ?? [], [data])
-  const rightMeta = TS_RIGHT_METRICS.find((m) => m.key === tsRightAxis) ?? TS_RIGHT_METRICS[0]
+  const barData = useMemo(() => {
+    const rows = [...breakdownRaw] as Array<Record<string, unknown> & { label?: string; spend_usd?: number }>
+    rows.sort((a, b) => Number(b.spend_usd ?? 0) - Number(a.spend_usd ?? 0))
+    return rows.slice(0, 12).map((r) => ({
+      name: String(r.label ?? r.campaign_id ?? r.creative_id ?? '?').slice(0, 42),
+      spend: Number(r.spend_usd ?? 0),
+      ctr: r.ctr != null ? Number(r.ctr) * 100 : null,
+    }))
+  }, [breakdownRaw])
 
-  const showAdvTable = (rankings?.advertisers?.length ?? 0) >= 2
-  const showCampTable = (rankings?.campaigns?.length ?? 0) >= 2
-  const showCreTable = (rankings?.creatives?.length ?? 0) >= 2
-
-  const handleDateFromInput = (raw: string) => {
-    const bmin = dateRange?.min
-    const bmax = dateRange?.max
-    if (!bmin || !bmax) return
-    setFilters((f) => {
-      let from = raw ? clampIsoDate(raw, bmin, bmax) : bmin
-      let to = (f.date_to as string | undefined) || bmax
-      to = clampIsoDate(to, bmin, bmax)
-      if (from > to) to = from
-      return { ...f, date_from: from, date_to: to }
-    })
+  const chartTooltip = {
+    contentStyle: {
+      background: '#ffffff',
+      border: '1px solid #e7e5e4',
+      borderRadius: '12px',
+      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.07)',
+    },
+    labelStyle: { color: '#44403c', fontWeight: 600 },
+    itemStyle: { color: '#57534e' },
   }
 
-  const handleDateToInput = (raw: string) => {
-    const bmin = dateRange?.min
-    const bmax = dateRange?.max
-    if (!bmin || !bmax) return
-    setFilters((f) => {
-      let to = raw ? clampIsoDate(raw, bmin, bmax) : bmax
-      let from = (f.date_from as string | undefined) || bmin
-      from = clampIsoDate(from, bmin, bmax)
-      if (to < from) from = to
-      return { ...f, date_from: from, date_to: to }
-    })
-  }
-
-  const dateFromMax =
-    dateRange?.max &&
-    (filters.date_to as string | undefined) &&
-    String(filters.date_to) <= dateRange.max
-      ? String(filters.date_to)
-      : dateRange?.max
-  const dateToMin =
-    dateRange?.min &&
-    (filters.date_from as string | undefined) &&
-    String(filters.date_from) >= dateRange.min
-      ? String(filters.date_from)
-      : dateRange?.min
-
-  const chipKeys: { key: keyof PerformanceFilters; label: string; optKey: string; labeledKey?: string }[] = [
-    { key: 'advertiser_ids', label: 'Advertisers', optKey: 'advertiser_id', labeledKey: 'advertiser_labeled' },
-    { key: 'campaign_ids', label: 'Campaigns', optKey: 'campaign_id', labeledKey: 'campaign_labeled' },
-    { key: 'creative_ids', label: 'Creatives', optKey: 'creative_id', labeledKey: 'creative_labeled' },
-    { key: 'countries', label: 'Countries', optKey: 'country' },
-    { key: 'os_list', label: 'OS', optKey: 'os' },
-    { key: 'verticals', label: 'Vertical', optKey: 'vertical' },
-    { key: 'objectives', label: 'Objective', optKey: 'objective' },
-    { key: 'formats', label: 'Format', optKey: 'format' },
-    { key: 'themes', label: 'Theme', optKey: 'theme' },
-    { key: 'hook_types', label: 'Hook', optKey: 'hook_type' },
-    { key: 'languages', label: 'Language', optKey: 'language' },
-    { key: 'primary_themes', label: 'Primary theme', optKey: 'primary_theme' },
-    { key: 'target_os_list', label: 'Target OS', optKey: 'target_os' },
-    { key: 'target_age_segments', label: 'Age segment', optKey: 'target_age_segment' },
-    { key: 'hq_regions', label: 'HQ region', optKey: 'advertiser_hq_region' },
-    { key: 'dominant_colors', label: 'Color', optKey: 'dominant_color' },
-    { key: 'emotional_tones', label: 'Tone', optKey: 'emotional_tone' },
-  ]
-  const entityChipKeys = chipKeys.slice(0, 3)
-  const moreChipKeys = chipKeys.slice(3)
-  const numericRanges = (opts?.numeric_ranges as Record<string, { min: number | null; max: number | null }> | undefined) || {}
-  const numericKeys = [
-    ['days_since_launch', 'Days live'],
-    ['daily_budget_usd', 'Daily budget'],
-    ['duration_sec', 'Duration'],
-    ['text_density', 'Text density'],
-    ['copy_length_chars', 'Copy length'],
-    ['readability_score', 'Readability'],
-    ['brand_visibility_score', 'Brand visibility'],
-    ['clutter_score', 'Clutter'],
-    ['novelty_score', 'Novelty'],
-    ['motion_score', 'Motion'],
-    ['faces_count', 'Faces'],
-    ['product_count', 'Products'],
-  ] as const
+  const advSelectedId = scope.kind === 'all' ? null : scope.advertiserId
+  const campSelectedId =
+    scope.kind === 'campaign' || scope.kind === 'creative' ? scope.campaignId : null
+  const creSelectedId = scope.kind === 'creative' ? scope.creativeId : null
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-2xl font-bold tracking-tight text-brand">Performance explorer</h1>
-        <p className="mt-1 text-sm text-stone-600">
-          Metrics from <code className="rounded bg-brand-50 px-1.5 py-0.5 text-xs font-medium text-brand">creative_daily_country_os_stats</code> with joins; filters slice the same fact rows.
-        </p>
-      </div>
-
-      <section className="surface-panel">
-        <div className="mb-4 flex min-w-0 flex-wrap items-end gap-3">
-          <label className="flex min-w-0 max-w-xs flex-1 flex-col gap-1 basis-[10rem]">
-            <span className="text-[10px] font-semibold uppercase tracking-wide text-stone-500">From</span>
-            <input
-              type="date"
-              className="input w-full min-w-0 py-1.5 text-sm"
-              min={dateRange?.min}
-              max={dateFromMax}
-              value={(filters.date_from as string) || ''}
-              onChange={(e) => handleDateFromInput(e.target.value)}
-            />
-          </label>
-          <label className="flex min-w-0 max-w-xs flex-1 flex-col gap-1 basis-[10rem]">
-            <span className="text-[10px] font-semibold uppercase tracking-wide text-stone-500">To</span>
-            <input
-              type="date"
-              className="input w-full min-w-0 py-1.5 text-sm"
-              min={dateToMin}
-              max={dateRange?.max}
-              value={(filters.date_to as string) || ''}
-              onChange={(e) => handleDateToInput(e.target.value)}
-            />
-          </label>
+    <div className="flex min-h-0 w-full flex-1 flex-col overflow-y-auto bg-canvas">
+      <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6">
+        <div className="mb-6">
+          <h1 className="font-display text-2xl font-bold tracking-tight text-brand">Performance</h1>
+          <p className="mt-1 max-w-2xl text-sm text-stone-600">
+            Choose <strong className="font-medium text-stone-800">All</strong> or one advertiser, then a campaign and
+            creative. Metrics update for the current selection and date range.
+          </p>
         </div>
 
-        <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-3">
-          <div className="surface-inset min-w-0">
-              <MultiSelect
-                label={entityChipKeys[0].label}
-                options={optionsForChip(opts, entityChipKeys[0].optKey, entityChipKeys[0].labeledKey)}
-                value={(filters[entityChipKeys[0].key] as (string | number)[]) || []}
-                onChange={(v) => setFilters((f) => ({ ...f, [entityChipKeys[0].key]: v.length ? v : undefined }))}
-                searchable
-                searchPlaceholder="Search advertisers…"
-                maxChipRows={3}
-              />
-          </div>
-          <div className="surface-inset min-w-0">
-              <MultiSelect
-                label={entityChipKeys[1].label}
-                options={optionsForChip(opts, entityChipKeys[1].optKey, entityChipKeys[1].labeledKey)}
-                value={(filters[entityChipKeys[1].key] as (string | number)[]) || []}
-                onChange={(v) => setFilters((f) => ({ ...f, [entityChipKeys[1].key]: v.length ? v : undefined }))}
-                searchable
-                searchPlaceholder="Search campaigns…"
-                maxChipRows={3}
-              />
-          </div>
-          <div className="surface-inset min-w-0">
-              <MultiSelect
-                label={entityChipKeys[2].label}
-                options={optionsForChip(opts, entityChipKeys[2].optKey, entityChipKeys[2].labeledKey)}
-                value={(filters[entityChipKeys[2].key] as (string | number)[]) || []}
-                onChange={(v) => setFilters((f) => ({ ...f, [entityChipKeys[2].key]: v.length ? v : undefined }))}
-                searchable
-                searchPlaceholder="Search creatives…"
-                maxChipRows={3}
-              />
-          </div>
-        </div>
-        <details className="mt-5 rounded-xl border border-stone-200 bg-stone-50/60 p-3">
-          <summary className="cursor-pointer select-none text-sm font-medium text-stone-800">More filters</summary>
-          <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {moreChipKeys.map(({ key, label, optKey, labeledKey }) => (
-              <MultiSelect
-                key={String(key)}
-                label={label}
-                options={optionsForChip(opts, optKey, labeledKey)}
-                value={(filters[key] as (string | number)[]) || []}
-                onChange={(v) => setFilters((f) => ({ ...f, [key]: v.length ? v : undefined }))}
-              />
+        <section className="mb-6 grid gap-3 md:grid-cols-3" aria-label="Scope selection">
+          <div className="surface-panel flex min-h-[14rem] flex-col gap-2 !py-3 md:max-h-[min(52vh,28rem)] md:overflow-y-auto">
+            <h2 className="text-[10px] font-semibold uppercase tracking-wide text-stone-500">Advertiser</h2>
+            <button type="button" className={pickListBtn(scope.kind === 'all')} onClick={() => setScope({ kind: 'all' })}>
+              All
+            </button>
+            {hierarchy?.map((a) => (
+              <button
+                key={a.advertiser_id}
+                type="button"
+                className={pickListBtn(advSelectedId === a.advertiser_id)}
+                onClick={() => setScope({ kind: 'advertiser', advertiserId: a.advertiser_id })}
+              >
+                {a.label}
+              </button>
             ))}
+            {!hierarchy?.length && !err ? (
+              <p className="text-xs text-stone-500">Loading advertisers…</p>
+            ) : null}
           </div>
-          <div className="mt-4 border-t border-stone-200 pt-3">
-            <div className="mb-2 text-xs font-medium uppercase tracking-wide text-stone-500">Numeric ranges</div>
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {numericKeys.map(([key, label]) => {
-                const range = numericRanges[key]
-                return (
-                  <div key={key}>
-                    <div className="mb-1 text-xs text-stone-600">
-                      {label}
-                      {range ? (
-                        <span className="ml-1 text-stone-500">
-                          ({fmt(range.min ?? undefined)}-{fmt(range.max ?? undefined)})
-                        </span>
-                      ) : null}
-                    </div>
-                    <div className="flex gap-2">
-                      <input
-                        className="input w-full"
-                        placeholder="min"
-                        value={(filters[`${key}_min`] as string | number | undefined) ?? ''}
-                        onChange={(e) =>
-                          setFilters((f) => ({ ...f, [`${key}_min`]: e.target.value === '' ? undefined : Number(e.target.value) }))
-                        }
-                      />
-                      <input
-                        className="input w-full"
-                        placeholder="max"
-                        value={(filters[`${key}_max`] as string | number | undefined) ?? ''}
-                        onChange={(e) =>
-                          setFilters((f) => ({ ...f, [`${key}_max`]: e.target.value === '' ? undefined : Number(e.target.value) }))
-                        }
-                      />
-                    </div>
-                  </div>
-                )
-              })}
+
+          <div
+            className={`surface-panel flex min-h-[14rem] flex-col gap-2 !py-3 md:max-h-[min(52vh,28rem)] md:overflow-y-auto ${
+              !selectedAdvertiser ? 'opacity-60' : ''
+            }`}
+          >
+            <h2 className="text-[10px] font-semibold uppercase tracking-wide text-stone-500">Campaign</h2>
+            {!selectedAdvertiser ? (
+              <p className="text-sm text-stone-500">Select an advertiser to list campaigns.</p>
+            ) : (
+              selectedAdvertiser.campaigns.map((c) => (
+                <button
+                  key={c.campaign_id}
+                  type="button"
+                  disabled={!selectedAdvertiser}
+                  className={pickListBtn(campSelectedId === c.campaign_id)}
+                  onClick={() =>
+                    setScope({
+                      kind: 'campaign',
+                      advertiserId: selectedAdvertiser.advertiser_id,
+                      campaignId: c.campaign_id,
+                    })
+                  }
+                >
+                  {c.label}
+                </button>
+              ))
+            )}
+          </div>
+
+          <div
+            className={`surface-panel flex min-h-[14rem] flex-col gap-2 !py-3 md:max-h-[min(52vh,28rem)] md:overflow-y-auto ${
+              !selectedCampaign ? 'opacity-60' : ''
+            }`}
+          >
+            <h2 className="text-[10px] font-semibold uppercase tracking-wide text-stone-500">Creative</h2>
+            {!selectedCampaign ? (
+              <p className="text-sm text-stone-500">Select a campaign to list creatives.</p>
+            ) : (
+              creatives.map((cr) => (
+                <button
+                  key={cr.creative_id}
+                  type="button"
+                  className={pickListBtn(creSelectedId === cr.creative_id)}
+                  onClick={() => {
+                    if (!selectedAdvertiser) return
+                    setScope({
+                      kind: 'creative',
+                      advertiserId: selectedAdvertiser.advertiser_id,
+                      campaignId: selectedCampaign.campaign_id,
+                      creativeId: cr.creative_id,
+                    })
+                  }}
+                >
+                  {cr.label}
+                </button>
+              ))
+            )}
+          </div>
+        </section>
+
+        <section className="surface-panel mb-6 !py-3">
+          <div className="flex min-w-0 flex-wrap items-end gap-3">
+            <label className="flex min-w-[9rem] flex-1 flex-col gap-1">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-stone-500">From</span>
+              <input
+                type="date"
+                className="input w-full py-1.5 text-sm"
+                min={dateRange?.min}
+                max={dates.to && dateRange?.max ? clampIsoDate(dates.to, dateRange.min, dateRange.max) : dateRange?.max}
+                value={dates.from}
+                onChange={(e) => {
+                  const raw = e.target.value
+                  if (!dateRange?.min || !dateRange?.max) return
+                  const from = raw ? clampIsoDate(raw, dateRange.min, dateRange.max) : dateRange.min
+                  let to = dates.to || dateRange.max
+                  to = clampIsoDate(to, dateRange.min, dateRange.max)
+                  if (from > to) setDates({ from, to: from })
+                  else setDates({ from, to })
+                }}
+              />
+            </label>
+            <label className="flex min-w-[9rem] flex-1 flex-col gap-1">
+              <span className="text-[10px] font-semibold uppercase tracking-wide text-stone-500">To</span>
+              <input
+                type="date"
+                className="input w-full py-1.5 text-sm"
+                min={dates.from && dateRange?.min ? clampIsoDate(dates.from, dateRange.min, dateRange.max) : dateRange?.min}
+                max={dateRange?.max}
+                value={dates.to}
+                onChange={(e) => {
+                  const raw = e.target.value
+                  if (!dateRange?.min || !dateRange?.max) return
+                  const to = raw ? clampIsoDate(raw, dateRange.min, dateRange.max) : dateRange.max
+                  let from = dates.from || dateRange.min
+                  from = clampIsoDate(from, dateRange.min, dateRange.max)
+                  if (to < from) setDates({ from: to, to })
+                  else setDates({ from, to })
+                }}
+              />
+            </label>
+          </div>
+        </section>
+
+        {err ? <p className="mb-4 text-sm text-red-600">{err}</p> : null}
+
+        {summary ? (
+          <>
+            <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <MetricCard label="Spend (USD)" value={fmt(summary.total_spend_usd, 0)} />
+              <MetricCard label="Impressions" value={fmt(summary.total_impressions, 0)} />
+              <MetricCard label="Clicks" value={fmt(summary.total_clicks as number, 0)} />
+              <MetricCard label="Conversions" value={fmt(summary.total_conversions as number, 0)} />
+              <MetricCard label="Revenue (USD)" value={fmt(summary.total_revenue_usd as number, 0)} />
+              <MetricCard
+                label="Viewability"
+                value={fmtPct(summary.overall_viewability_rate as number)}
+                hint="Viewable imps / imps"
+              />
+              <MetricCard label="CTR" value={fmtPct(summary.overall_ctr as number)} hint="Clicks / impressions" />
+              <MetricCard label="CPA (USD)" value={fmt(summary.overall_cpa_usd as number)} hint="Spend / conversions" />
+              <MetricCard label="CVR" value={fmtPct(summary.overall_cvr as number)} />
+              <MetricCard label="IPM" value={fmt(summary.overall_ipm as number)} hint="Conv per 1k imps" />
+              <MetricCard label="ROAS" value={fmt(summary.overall_roas as number)} />
+              <MetricCard
+                label="Rows / entities"
+                value={`${fmt(data?.row_count, 0)} rows`}
+                hint={`${summary.distinct_creatives} creatives | ${summary.distinct_campaigns} campaigns | ${Number(summary.distinct_advertisers ?? 0)} advertisers | ${summary.calendar_days_in_window} days`}
+              />
             </div>
-          </div>
-        </details>
-        {err ? <p className="mt-4 text-sm text-red-600">{err}</p> : null}
-      </section>
 
-      {summary ? (
-        <>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <MetricCard label="Spend (USD)" value={fmt(summary.total_spend_usd, 0)} />
-            <MetricCard label="Impressions" value={fmt(summary.total_impressions, 0)} />
-            <MetricCard label="Clicks" value={fmt(summary.total_clicks as number, 0)} />
-            <MetricCard label="Conversions" value={fmt(summary.total_conversions as number, 0)} />
-            <MetricCard label="Revenue (USD)" value={fmt(summary.total_revenue_usd as number, 0)} />
-            <MetricCard
-              label="Viewability"
-              value={fmtPct(summary.overall_viewability_rate as number)}
-              hint="Viewable imps / imps"
-            />
-            <MetricCard label="CTR" value={fmtPct(summary.overall_ctr as number)} hint="Clicks / impressions" />
-            <MetricCard label="CPA (USD)" value={fmt(summary.overall_cpa_usd as number)} hint="Spend / conversions" />
-            <MetricCard label="CVR" value={fmtPct(summary.overall_cvr as number)} />
-            <MetricCard label="IPM" value={fmt(summary.overall_ipm as number)} hint="Conv per 1k imps" />
-            <MetricCard label="ROAS" value={fmt(summary.overall_roas as number)} />
-            <MetricCard
-              label="Rows / entities"
-              value={`${fmt(data?.row_count, 0)} rows`}
-              hint={`${summary.distinct_creatives} creatives | ${summary.distinct_campaigns} campaigns | ${Number(summary.distinct_advertisers ?? 0)} advertisers | ${summary.calendar_days_in_window} days`}
-            />
-          </div>
-
-          {(showAdvTable || showCampTable || showCreTable) && rankings ? (
-            <div className="grid gap-4 lg:grid-cols-3">
-              {showAdvTable ? (
-                <TopEntityTable title="Top advertisers" rows={rankings.advertisers} />
-              ) : null}
-              {showCampTable ? (
-                <TopEntityTable title="Top campaigns" rows={rankings.campaigns} />
-              ) : null}
-              {showCreTable ? (
-                <TopEntityTable title="Top creatives" rows={rankings.creatives} />
-              ) : null}
-            </div>
-          ) : null}
-
-          <div className="surface-panel !p-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <div>
-                <h3 className="font-display text-sm font-semibold text-brand">Performance over time</h3>
-                <p className="mt-0.5 text-xs text-stone-600">
-                  CTR (left) vs a volume or efficiency series (right). Switch the right axis to align with what you are
-                  investigating.
+            {scope.kind === 'creative' ? (
+              <div className="surface-panel mb-5 flex flex-col items-center gap-3 sm:flex-row sm:items-start">
+                <div className="flex min-h-[10rem] min-w-[8rem] shrink-0 items-center justify-center overflow-hidden rounded-xl border border-stone-200 bg-stone-50 shadow-sm">
+                  {creativeAssetOk ? (
+                    <img
+                      src={creativeAssetUrl(scope.creativeId)}
+                      alt="Creative asset"
+                      className="max-h-56 w-auto max-w-full object-contain"
+                      onError={() => setCreativeAssetOk(false)}
+                    />
+                  ) : (
+                    <span className="px-4 text-center text-xs text-stone-500">No image file on server for this creative.</span>
+                  )}
+                </div>
+                <p className="text-center text-xs text-stone-600 sm:text-left">
+                  Preview loads from the import bundle when the PNG exists on the API host (
+                  <code className="rounded bg-stone-100 px-1">IMPORT_DATA_DIR</code>).
                 </p>
               </div>
-              <label className="flex flex-col gap-1 text-xs text-stone-600 sm:min-w-[11rem]">
-                <span className="font-medium uppercase tracking-wide text-stone-500">Right axis</span>
-                <select
-                  className="input py-1.5 text-sm"
-                  value={tsRightAxis}
-                  onChange={(e) => setTsRightAxis(e.target.value as TsRightKey)}
-                >
-                  {TS_RIGHT_METRICS.map((m) => (
-                    <option key={m.key} value={m.key}>
-                      {m.label}
-                    </option>
-                  ))}
-                </select>
-              </label>
+            ) : null}
+
+            <div className="surface-panel mb-5">
+              <h3 className="font-display text-sm font-semibold text-brand">CTR & spend over time</h3>
+              <p className="mt-0.5 text-xs text-stone-600">Daily totals for the current scope.</p>
+              <div className="mt-3 h-64 sm:h-72">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={ts}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
+                    <XAxis dataKey="date" tick={{ fill: '#78716c', fontSize: 11 }} />
+                    <YAxis
+                      yAxisId="l"
+                      tick={{ fill: '#78716c', fontSize: 11 }}
+                      tickFormatter={(v) => `${(Number(v) * 100).toFixed(2)}%`}
+                    />
+                    <YAxis yAxisId="r" orientation="right" tick={{ fill: '#78716c', fontSize: 11 }} />
+                    <Tooltip
+                      {...chartTooltip}
+                      formatter={(value, name) => {
+                        const label = String(name)
+                        if (value === undefined || value === null) return ['-', label]
+                        const num = typeof value === 'number' ? value : Number(value)
+                        if (Number.isNaN(num)) return ['-', label]
+                        if (label === 'CTR') return [fmtPct(num), label]
+                        return [fmt(num, 0), label]
+                      }}
+                    />
+                    <Legend />
+                    <Line yAxisId="l" type="monotone" dataKey="ctr" name="CTR" stroke="#7c3aad" dot={false} strokeWidth={2} />
+                    <Line
+                      yAxisId="r"
+                      type="monotone"
+                      dataKey="spend_usd"
+                      name="Spend (USD)"
+                      stroke="#5e2d87"
+                      dot={false}
+                      strokeWidth={2}
+                    />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
             </div>
-            <div className="mt-3 h-64 sm:h-72">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={ts}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
-                  <XAxis dataKey="date" tick={{ fill: '#78716c', fontSize: 11 }} />
-                  <YAxis
-                    yAxisId="l"
-                    tick={{ fill: '#78716c', fontSize: 11 }}
-                    tickFormatter={(v) => `${(Number(v) * 100).toFixed(2)}%`}
-                    label={{ value: 'CTR', angle: -90, position: 'insideLeft', fill: '#a8a29e', fontSize: 10 }}
-                  />
-                  <YAxis yAxisId="r" orientation="right" tick={{ fill: '#78716c', fontSize: 11 }} />
-                  <Tooltip
-                    contentStyle={{
-                      background: '#ffffff',
-                      border: '1px solid #e7e5e4',
-                      borderRadius: '12px',
-                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.07)',
-                    }}
-                    labelStyle={{ color: '#44403c', fontWeight: 600 }}
-                    itemStyle={{ color: '#57534e' }}
-                    formatter={(value, name) => {
-                      const label = String(name)
-                      if (value === undefined || value === null) return ['-', label]
-                      const num = typeof value === 'number' ? value : Number(value)
-                      if (Number.isNaN(num)) return ['-', label]
-                      if (label === 'CTR') return [fmtPct(num), label]
-                      if (tsRightAxis === 'ipm') return [fmt(num, 3), label]
-                      if (tsRightAxis === 'spend_usd' || tsRightAxis === 'revenue_usd') return [fmt(num, 2), label]
-                      return [fmt(num, 0), label]
-                    }}
-                  />
-                  <Legend />
-                  <Line yAxisId="l" type="monotone" dataKey="ctr" name="CTR" stroke="#7c3aad" dot={false} strokeWidth={2} />
-                  <Line
-                    yAxisId="r"
-                    type="monotone"
-                    dataKey={tsRightAxis}
-                    name={rightMeta.label}
-                    stroke={rightMeta.stroke}
-                    dot={false}
-                    strokeWidth={2}
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </>
-      ) : null}
+
+            {barData.length > 0 ? (
+              <div className="surface-panel">
+                <h3 className="font-display text-sm font-semibold text-brand">
+                  {scope.kind === 'advertiser' ? 'Spend by campaign' : 'Spend by creative'}
+                </h3>
+                <p className="mt-0.5 text-xs text-stone-600">Top slices in this scope (by spend).</p>
+                <div className="mt-3 h-72">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={barData} layout="vertical" margin={{ left: 8, right: 16, top: 8, bottom: 8 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" horizontal={false} />
+                      <XAxis type="number" tick={{ fill: '#78716c', fontSize: 11 }} tickFormatter={(v) => fmt(v, 0)} />
+                      <YAxis
+                        type="category"
+                        dataKey="name"
+                        width={118}
+                        tick={{ fill: '#57534e', fontSize: 10 }}
+                        interval={0}
+                      />
+                      <Tooltip {...chartTooltip} formatter={(v) => [fmt(Number(v), 0), 'Spend (USD)']} />
+                      <Bar dataKey="spend" name="Spend (USD)" fill="#7c3aad" radius={[0, 6, 6, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            ) : null}
+          </>
+        ) : (
+          <p className="text-sm text-stone-500">Loading metrics…</p>
+        )}
+      </div>
     </div>
   )
 }

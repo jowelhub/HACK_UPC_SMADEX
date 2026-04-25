@@ -1,7 +1,6 @@
 import { Link, Outlet, useLocation } from 'react-router-dom'
 
 const nav = [
-  { to: '/', label: 'Home' },
   { to: '/performance', label: 'Performance' },
   { to: '/fatigue', label: 'Fatigue' },
   { to: '/recommendations', label: 'Recommendations' },
@@ -13,16 +12,8 @@ export function Layout() {
     <div className="flex min-h-full flex-col">
       <header className="sticky top-0 z-20 border-b border-stone-200/90 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-3.5 sm:px-6">
-          <Link to="/" className="flex items-center gap-2.5 font-display text-lg font-semibold tracking-tight text-stone-900">
-            <span
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-brand text-sm font-bold text-white shadow-sm"
-              aria-hidden
-            >
-              S
-            </span>
-            <span>
-              smadex <span className="font-medium text-brand">Creative Lab</span>
-            </span>
+          <Link to="/" className="font-display text-lg font-semibold tracking-tight text-stone-900">
+            Smadex <span className="font-medium text-brand">Creative Lab</span>
           </Link>
           <nav className="flex flex-wrap gap-1 text-sm font-medium">
             {nav.map((n) => (
@@ -41,7 +32,13 @@ export function Layout() {
           </nav>
         </div>
       </header>
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6">
+      <main
+        className={
+          loc.pathname === '/performance'
+            ? 'flex min-h-0 w-full flex-1 flex-col px-0 py-0'
+            : 'mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6'
+        }
+      >
         <Outlet />
       </main>
       <footer className="border-t border-stone-200 py-5 text-center text-xs text-stone-500">

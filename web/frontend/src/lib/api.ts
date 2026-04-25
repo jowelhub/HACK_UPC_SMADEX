@@ -13,11 +13,33 @@ async function post<T>(path: string, body: unknown): Promise<T> {
   return r.json() as Promise<T>
 }
 
+export type HierarchyCreative = { creative_id: number; label: string; asset_file: string | null }
+export type HierarchyCampaign = { campaign_id: number; label: string; creatives: HierarchyCreative[] }
+export type HierarchyAdvertiser = { advertiser_id: number; label: string; campaigns: HierarchyCampaign[] }
+
+/** Drill-down scope for performance filters and breakdowns. */
+export type PerformanceScope =
+  | { kind: 'all' }
+  | { kind: 'advertiser'; advertiserId: number }
+  | { kind: 'campaign'; advertiserId: number; campaignId: number }
+  | { kind: 'creative'; advertiserId: number; campaignId: number; creativeId: number }
+
+export async function fetchPerformanceHierarchy() {
+  const r = await fetch('/api/performance/hierarchy')
+  if (!r.ok) throw new Error(await r.text())
+  return r.json() as Promise<{ advertisers: HierarchyAdvertiser[] }>
+}
+
+export function creativeAssetUrl(creativeId: number) {
+  return `/api/creatives/${creativeId}/asset`
+}
+
 export async function fetchPerformanceQuery(payload: {
   filters: PerformanceFilters
   timeseries_grain?: string | null
   breakdown?: string | null
   leaderboard?: { by?: string; metric?: string; limit?: number } | null
+  include_entity_rankings?: boolean
 }) {
   return post<{
     summary: Record<string, number | null>

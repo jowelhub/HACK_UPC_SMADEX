@@ -189,6 +189,42 @@ def _agg_entity_block(agg_row: pd.Series) -> dict[str, Any]:
     }
 
 
+def _build_hierarchy(store: DataStore) -> list[dict[str, Any]]:
+    """Nested advertisers → campaigns → creatives for explorer UI."""
+    adv = store.advertisers.sort_values("advertiser_id")
+    camps = store.campaigns
+    crs = store.creatives
+    out: list[dict[str, Any]] = []
+    for _, a in adv.iterrows():
+        aid = int(a["advertiser_id"])
+        name = str(a.get("advertiser_name") or aid)
+        sub_c = camps[camps["advertiser_id"] == aid].sort_values("campaign_id")
+        camp_list: list[dict[str, Any]] = []
+        for _, c in sub_c.iterrows():
+            cid = int(c["campaign_id"])
+            clabel = _campaign_display_label(c)
+            sub_cr = crs[crs["campaign_id"] == cid].sort_values("creative_id")
+            crlist: list[dict[str, Any]] = []
+            for _, cr in sub_cr.iterrows():
+                crid = int(cr["creative_id"])
+                af = cr.get("asset_file")
+                af_s: str | None
+                if af is None or (isinstance(af, float) and pd.isna(af)):
+                    af_s = None
+                else:
+                    af_s = str(af).strip() or None
+                crlist.append(
+                    {
+                        "creative_id": crid,
+                        "label": _composite_creative_label(cr, camps),
+                        "asset_file": af_s,
+                    }
+                )
+            camp_list.append({"campaign_id": cid, "label": clabel, "creatives": crlist})
+        out.append({"advertiser_id": aid, "label": name, "campaigns": camp_list})
+    return out
+
+
 def _entity_rankings(
     sub: pd.DataFrame,
     store: DataStore,
@@ -313,6 +349,9 @@ class PerformanceService:
 
         return opts
 
+    def hierarchy(self) -> dict[str, Any]:
+        return {"advertisers": _build_hierarchy(self._store)}
+
     def query(self, body: dict[str, Any]) -> dict[str, Any]:
         filters = body.get("filters") or {}
         sub = _apply_filters(self._df, filters)
@@ -324,15 +363,16 @@ class PerformanceService:
 
         result: dict[str, Any] = {"summary": summary, "row_count": int(len(sub))}
 
-        if len(sub) and "advertiser_id" in sub.columns:
-            st = self._store
-            result["entity_rankings"] = {
-                "advertisers": _entity_rankings(sub, st, "advertiser_id", "advertiser_id", limit=15),
-                "campaigns": _entity_rankings(sub, st, "campaign_id", "campaign_id", limit=15),
-                "creatives": _entity_rankings(sub, st, "creative_id", "creative_id", limit=15),
-            }
-        else:
-            result["entity_rankings"] = {"advertisers": [], "campaigns": [], "creatives": []}
+        if body.get("include_entity_rankings"):
+            if len(sub) and "advertiser_id" in sub.columns:
+                st = self._store
+                result["entity_rankings"] = {
+                    "advertisers": _entity_rankings(sub, st, "advertiser_id", "advertiser_id", limit=15),
+                    "campaigns": _entity_rankings(sub, st, "campaign_id", "campaign_id", limit=15),
+                    "creatives": _entity_rankings(sub, st, "creative_id", "creative_id", limit=15),
+                }
+            else:
+                result["entity_rankings"] = {"advertisers": [], "campaigns": [], "creatives": []}
 
         if ts_grain == "day" and len(sub):
             sub_ts = sub.copy()
@@ -369,6 +409,32 @@ class PerformanceService:
             g2["ctr"] = g2.apply(lambda r: _safe_div(r["clicks"], r["impressions"]), axis=1)
             g2["cpa_usd"] = g2.apply(lambda r: _safe_div(r["spend_usd"], r["conversions"]), axis=1)
             g2["viewability_rate"] = g2.apply(lambda r: _safe_div(r["viewable_impressions"], r["impressions"]), axis=1)
+            if breakdown == "campaign_id":
+                cmap = self._store.campaigns.set_index("campaign_id")
+                labels: list[str] = []
+                for _, r in g2.iterrows():
+                    cid = int(r["campaign_id"])
+                    if cid in cmap.index:
+                        row = cmap.loc[cid]
+                        ser = row if isinstance(row, pd.Series) else row.iloc[0]
+                        labels.append(_campaign_display_label(ser))
+                    else:
+                        labels.append(str(cid))
+                g2 = g2.copy()
+                g2["label"] = labels
+            elif breakdown == "creative_id":
+                crmap = self._store.creatives.set_index("creative_id")
+                labels_cr: list[str] = []
+                for _, r in g2.iterrows():
+                    crid = int(r["creative_id"])
+                    if crid in crmap.index:
+                        row = crmap.loc[crid]
+                        ser = row if isinstance(row, pd.Series) else row.iloc[0]
+                        labels_cr.append(_composite_creative_label(ser, self._store.campaigns))
+                    else:
+                        labels_cr.append(str(crid))
+                g2 = g2.copy()
+                g2["label"] = labels_cr
             result["breakdown"] = g2.to_dict(orient="records")
 
         if leaderboard:

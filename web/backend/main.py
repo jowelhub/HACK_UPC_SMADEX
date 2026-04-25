@@ -4,11 +4,13 @@ from __future__ import annotations
 
 import os
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, Query, Request
+import pandas as pd
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
 from modules.fatigue.ml_ctr import (
@@ -64,6 +66,7 @@ class PerformanceQueryBody(BaseModel):
     timeseries_grain: str | None = None
     breakdown: str | None = None
     leaderboard: dict[str, Any] | None = None
+    include_entity_rankings: bool = False
 
 
 class FilterOptionsBody(BaseModel):
@@ -85,6 +88,30 @@ def performance_query(body: PerformanceQueryBody, request: Request) -> dict[str,
 def performance_filter_options(body: FilterOptionsBody, request: Request) -> dict[str, Any]:
     svc: PerformanceService = request.app.state.performance
     return {"options": svc.filter_options(body.filters)}
+
+
+@app.get("/api/performance/hierarchy")
+def performance_hierarchy(request: Request) -> dict[str, Any]:
+    svc: PerformanceService = request.app.state.performance
+    return svc.hierarchy()
+
+
+@app.get("/api/creatives/{creative_id}/asset")
+def creative_asset_file(creative_id: int, request: Request) -> FileResponse:
+    store = request.app.state.store
+    row = store.creatives[store.creatives["creative_id"] == creative_id]
+    if len(row) == 0:
+        raise HTTPException(status_code=404, detail="Creative not found")
+    rel = row.iloc[0].get("asset_file")
+    if rel is None or (isinstance(rel, float) and pd.isna(rel)) or not str(rel).strip():
+        raise HTTPException(status_code=404, detail="No asset path")
+    base = os.environ.get("IMPORT_DATA_DIR", "").strip()
+    if not base:
+        raise HTTPException(status_code=503, detail="IMPORT_DATA_DIR not configured")
+    path = Path(base) / str(rel).lstrip("/")
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="Asset file not found on server")
+    return FileResponse(str(path), media_type="image/png")
 
 
 @app.get("/api/fatigue/creative-ids")
