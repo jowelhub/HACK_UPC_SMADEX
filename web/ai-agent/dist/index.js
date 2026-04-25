@@ -32,9 +32,6 @@ app.post('/api/agent/chat', async (c) => {
     });
 });
 const port = Number(process.env.PORT || 3001);
-const ce = process.env.ENABLE_CODE_EXECUTION?.trim().toLowerCase() ?? '';
-const codeOn = !['0', 'false', 'no', 'off'].includes(ce);
-console.info(`[ai-agent] @google/genai model=${(process.env.CHAT_MODEL || 'gemma-4-31b-it').trim()} ` +
-    `port=${port} codeExecution=${codeOn ? 'on' : 'off'}`);
+console.info(`[ai-agent] @google/genai model=${(process.env.CHAT_MODEL || 'gemma-4-31b-it').trim()} port=${port} (runSQL + getDatabaseSchema)`);
 serve({ fetch: app.fetch, port, hostname: '0.0.0.0' });
 //# sourceMappingURL=index.js.map

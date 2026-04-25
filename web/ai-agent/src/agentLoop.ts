@@ -97,17 +97,8 @@ async function executeToolCall(call: FunctionCall): Promise<Record<string, unkno
   return { error: { message: `Unknown tool: ${name}` } }
 }
 
-/** Set ENABLE_CODE_EXECUTION=false to disable Google code execution (avoids 404s on some Gemma + tool combos). */
-function isCodeExecutionEnabled() {
-  const v = process.env.ENABLE_CODE_EXECUTION?.trim().toLowerCase()
-  if (v === '0' || v === 'false' || v === 'no' || v === 'off') return false
-  return true
-}
-
-function buildToolDeclarations(
-  withCodeExecution: boolean,
-): NonNullable<GenerateContentConfig['tools']> {
-  const functionBlock = {
+const toolDeclarations: NonNullable<GenerateContentConfig['tools']> = [
+  {
     functionDeclarations: [
       {
         name: 'getDatabaseSchema',
@@ -134,12 +125,8 @@ function buildToolDeclarations(
         },
       },
     ],
-  }
-  const out = withCodeExecution
-    ? ([{ codeExecution: {} as Record<string, never> }, functionBlock] as const)
-    : [functionBlock]
-  return out as unknown as NonNullable<GenerateContentConfig['tools']>
-}
+  },
+] as unknown as NonNullable<GenerateContentConfig['tools']>
 
 export function createCopilotReadable(
   client: GoogleGenAI,
@@ -167,16 +154,13 @@ export function createCopilotReadable(
         }
       }
 
-      const useCodeExec = isCodeExecutionEnabled()
       const baseConfig: GenerateContentConfig = {
         systemInstruction,
         temperature: 0.7,
         maxOutputTokens: 8192,
-        tools: buildToolDeclarations(useCodeExec),
+        tools: toolDeclarations,
         toolConfig: {
           functionCallingConfig: { mode: FunctionCallingConfigMode.AUTO },
-          // Required when mixing codeExecution with function declarations; omit for SQL-only.
-          ...(useCodeExec ? { includeServerSideToolInvocations: true } : {}),
         },
         automaticFunctionCalling: { disable: true },
         thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH, includeThoughts: true },
@@ -192,7 +176,6 @@ export function createCopilotReadable(
         for (let step = 0; step < MAX_TOOL_ROUNDS; step += 1) {
         let lastEmittedMain = ''
         let lastEmittedThought = ''
-        let lastExecutableJson = ''
         const stream = await client.models.generateContentStream({
           model,
           contents,
@@ -200,9 +183,15 @@ export function createCopilotReadable(
         })
 
         let lastChunk: GenerateContentResponse | undefined
+        // Streaming: the final chunk may be text-only and drop functionCall parts. Keep the
+        // last candidate snapshot that still had tool calls.
+        let lastChunkWithTools: GenerateContentResponse | undefined
 
         for await (const chunk of stream) {
           lastChunk = chunk
+          if (chunk.functionCalls?.length) {
+            lastChunkWithTools = chunk
+          }
           const parts = chunk.candidates?.[0]?.content?.parts ?? []
           const main = concatTextFromParts(parts, 'main')
           const { delta: dMain, next: nMain } = nextDelta(main, lastEmittedMain)
@@ -215,22 +204,6 @@ export function createCopilotReadable(
           if (dTh) {
             send({ type: 'thought', content: dTh })
             lastEmittedThought = nTh
-          }
-          for (const p of parts) {
-            if (p.executableCode) {
-              const j = JSON.stringify(p.executableCode)
-              if (j !== lastExecutableJson) {
-                lastExecutableJson = j
-                send({ type: 'executableCode', code: p.executableCode })
-              }
-            }
-            if (p.codeExecutionResult) {
-              send({ type: 'codeExecutionResult', result: p.codeExecutionResult })
-            }
-            const idata = p.inlineData
-            if (idata && typeof idata.mimeType === 'string' && idata.mimeType.startsWith('image/') && idata.data) {
-              send({ type: 'image', mimeType: idata.mimeType, data: String(idata.data) })
-            }
           }
         }
 
@@ -248,7 +221,8 @@ export function createCopilotReadable(
           })
         }
 
-        const calls = lastChunk.functionCalls
+        const toolSnapshot = lastChunkWithTools ?? lastChunk
+        const calls = toolSnapshot?.functionCalls
         if (!calls?.length) {
           break
         }
@@ -258,8 +232,11 @@ export function createCopilotReadable(
           break
         }
 
-        const c0 = lastChunk.candidates?.[0]
-        const modelContent = c0?.content
+        const cLast = lastChunk.candidates?.[0]?.content
+        const cTool = lastChunkWithTools?.candidates?.[0]?.content
+        const hasFn = (c: (typeof cLast) | undefined) => Boolean(c?.parts?.some((p) => p.functionCall))
+        // Prefer a snapshot that still has functionCall parts; the final stream chunk is often text-only.
+        const modelContent = hasFn(cLast) ? cLast! : cTool
         if (!modelContent?.parts?.length) {
           send({ type: 'error', message: 'Model returned function calls without content' })
           break
@@ -296,7 +273,7 @@ export function createCopilotReadable(
         if (lower.includes('not_found') || (lower.includes('404') && lower.includes('not found'))) {
           message = `${raw}
 
-Hint: “NOT_FOUND” is often the Google API (model or code-execution not available in this key/region) or a bad model id. For a stable copilot, use \`CHAT_MODEL=gemini-2.0-flash\` or set \`ENABLE_CODE_EXECUTION=false\` in env (runSQL + schema only, no Python sandbox).`
+Hint: “NOT_FOUND” often means the model id is not available for this API key/region. Check \`CHAT_MODEL\` (e.g. \`gemma-4-31b-it\`) in Google AI Studio.`
         }
         fail(message)
       }

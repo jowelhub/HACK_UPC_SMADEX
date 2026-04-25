@@ -47,7 +47,7 @@ services:
       retries: 5
       start_period: 120s
 
-  # Google @google/genai (Gemma 4) + runSQL; proxies SQL to backend. Native codeExecution tool in agent.
+  # Google @google/genai (Gemma 4) + runSQL + getDatabaseSchema; proxies SQL to FastAPI.
   ai-agent:
     build:
       context: .
@@ -57,8 +57,6 @@ services:
       BACKEND_URL: http://backend:8000
       GOOGLE_GENERATIVE_AI_API_KEY: ${GOOGLE_GENERATIVE_AI_API_KEY:-}
       CHAT_MODEL: ${CHAT_MODEL:-gemma-4-31b-it}
-      # "false" / "0" = disable Google Python code execution (SQL + schema only; helps if you see NOT_FOUND with Gemma+tools)
-      ENABLE_CODE_EXECUTION: ${ENABLE_CODE_EXECUTION:-}
       AGENT_SQL_TOKEN: ${AGENT_SQL_TOKEN:-}
     depends_on:
       backend:
