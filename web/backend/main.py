@@ -11,8 +11,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from modules.fatigue.ml_ctr import FatigueMLArtifacts, predict_ctr_for_creative, sse_pack, train_ctr_model_stream
-from modules.fatigue.service import FatigueService
+from modules.fatigue.ml_ctr import (
+    FatigueMLArtifacts,
+    compute_ml_health_by_creative,
+    predict_ctr_for_creative,
+    sse_pack,
+    train_ctr_model_stream,
+)
 from modules.performance.service import PerformanceService
 from modules.recommendations.service import RecommendationService
 from shared.store import get_store
@@ -21,12 +26,11 @@ from shared.store import get_store
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     store = get_store()
-    fatigue = FatigueService(store)
     app.state.store = store
-    app.state.fatigue = fatigue
     app.state.fatigue_ctr_ml = None
+    app.state.fatigue_ml_health = None
     app.state.performance = PerformanceService(store)
-    app.state.recommendations = RecommendationService(store, fatigue)
+    app.state.recommendations = RecommendationService(store)
     yield
 
 
@@ -83,26 +87,11 @@ def performance_filter_options(body: FilterOptionsBody, request: Request) -> dic
     return {"options": svc.filter_options(body.filters)}
 
 
-class FatigueSummaryBody(BaseModel):
-    filters: dict[str, Any] = Field(default_factory=dict)
-
-
-@app.post("/api/fatigue/summary")
-def fatigue_summary(body: FatigueSummaryBody, request: Request) -> dict[str, Any]:
-    svc: FatigueService = request.app.state.fatigue
-    return {"items": svc.summary(body.filters)}
-
-
-@app.get("/api/fatigue/curve/{creative_id}")
-def fatigue_curve(creative_id: int, request: Request) -> dict[str, Any]:
-    svc: FatigueService = request.app.state.fatigue
-    return {"creative_id": creative_id, "series": svc.curve(creative_id)}
-
-
 @app.get("/api/fatigue/creative-ids")
 def fatigue_creative_ids(request: Request) -> dict[str, Any]:
-    svc: FatigueService = request.app.state.fatigue
-    return {"creative_ids": svc.list_creative_ids()}
+    store = request.app.state.store
+    ids = sorted(int(x) for x in store.daily_enriched["creative_id"].unique())
+    return {"creative_ids": ids}
 
 
 @app.get("/api/fatigue/ml/status")
@@ -140,7 +129,9 @@ def fatigue_ml_train_stream(
                 yield sse_pack(ev)
         finally:
             if artifacts_box:
-                request.app.state.fatigue_ctr_ml = artifacts_box[0]
+                art = artifacts_box[0]
+                request.app.state.fatigue_ctr_ml = art
+                request.app.state.fatigue_ml_health = compute_ml_health_by_creative(store, art)
 
     headers = {
         "Cache-Control": "no-cache",
@@ -155,7 +146,7 @@ def fatigue_ml_predict_curve(creative_id: int, request: Request) -> dict[str, An
     art = getattr(request.app.state, "fatigue_ctr_ml", None)
     if art is None:
         return {"creative_id": creative_id, "trained": False, "series": []}
-    store = get_store()
+    store = request.app.state.store
     series = predict_ctr_for_creative(store, art, creative_id)
     return {"creative_id": creative_id, "trained": True, "series": series}
 
@@ -167,4 +158,5 @@ class RecommendationsBody(BaseModel):
 @app.post("/api/recommendations/list")
 def recommendations_list(body: RecommendationsBody, request: Request) -> dict[str, Any]:
     svc: RecommendationService = request.app.state.recommendations
-    return {"items": svc.list_recommendations(body.filters)}
+    ml_health = getattr(request.app.state, "fatigue_ml_health", None)
+    return {"items": svc.list_recommendations(body.filters, ml_health=ml_health)}

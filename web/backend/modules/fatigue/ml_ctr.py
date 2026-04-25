@@ -14,7 +14,7 @@ import pandas as pd
 from sklearn.metrics import mean_absolute_error, mean_squared_error, r2_score
 from sklearn.model_selection import GroupKFold, GroupShuffleSplit
 
-from modules.fatigue.service import _aggregate_daily
+from modules.fatigue.daily_agg import aggregate_daily_by_creative_date
 from shared.store import DataStore
 
 optuna.logging.set_verbosity(optuna.logging.WARNING)
@@ -73,7 +73,7 @@ def build_training_frame(store: DataStore) -> pd.DataFrame:
         ]
         + [c for c in STATIC_NUMERIC + STATIC_CAT if c in store.daily_enriched.columns]
     ].copy()
-    agg = _aggregate_daily(d)
+    agg = aggregate_daily_by_creative_date(d)
     cr = store.creatives.copy()
     for c in STATIC_NUMERIC + STATIC_CAT:
         if c not in cr.columns and c in STATIC_NUMERIC:
@@ -347,6 +347,24 @@ def train_ctr_model_stream(
         artifacts_out.clear()
         artifacts_out.append(artifacts)
     yield {"type": "done", "artifacts_ready": True, "n_features": len(feature_columns)}
+
+
+def compute_ml_health_by_creative(store: DataStore, artifacts: FatigueMLArtifacts) -> dict[int, float]:
+    """Per-creative score in [0,1]: mean agreement of actual vs predicted CTR over the last 5 training days."""
+    df = build_training_frame(store)
+    out: dict[int, float] = {}
+    tail = 5
+    for cid, sub in df.groupby("creative_id", sort=False):
+        X, _ = _feature_matrix(sub, artifacts.static_cat_cols, column_order=artifacts.feature_columns)
+        pred = artifacts.model.predict(X)
+        actual = sub["target_ctr"].to_numpy(dtype=float)
+        if len(pred) == 0:
+            continue
+        a = actual[-tail:]
+        p = pred[-tail:]
+        rel = 1.0 - np.minimum(1.0, np.abs(a - p) / np.maximum(a, 1e-6))
+        out[int(cid)] = float(np.clip(np.mean(rel), 0.0, 1.0))
+    return out
 
 
 def predict_ctr_for_creative(store: DataStore, artifacts: FatigueMLArtifacts, creative_id: int) -> list[dict[str, Any]]:

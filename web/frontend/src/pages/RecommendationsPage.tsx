@@ -40,8 +40,9 @@ export function RecommendationsPage() {
       <div>
         <h1 className="font-display text-2xl font-bold text-white">Recommendations</h1>
         <p className="mt-1 max-w-3xl text-sm text-slate-400">
-          Actions are on <strong className="text-slate-200">creatives</strong> (rotate budget, brief new assets, pause spend) - not on
-          auction slots or bids. Similarity for rotation uses format, theme, hook, color, tone, plus gameplay and motion scores.
+          Actions are on <strong className="text-slate-200">creatives</strong> (rotate, replace, pause, scale) — not auction
+          slots. <strong className="text-slate-200">Health</strong> comes from the CTR model on the Fatigue page after you
+          train; until then defaults are neutral. Rotation uses format, theme, hook, color, tone, gameplay, and motion.
         </p>
       </div>
 

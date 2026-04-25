@@ -89,7 +89,7 @@ docker compose up --build
 
 - **`/api/health`** — Liveness for Compose healthchecks.
 - **`/api/performance/*`** — Sliced metrics from the enriched daily frame.
-- **`/api/fatigue/*`** — Fatigue-oriented views.
+- **`/api/fatigue/*`** — Creative IDs and **ML-only** CTR training / prediction (no rule-based degradation API).
 - **`/api/recommendations/*`** — Recommendation helpers.
 
 ---

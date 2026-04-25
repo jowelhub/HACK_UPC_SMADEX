@@ -32,12 +32,6 @@ export async function fetchFilterOptions(filters: PerformanceFilters) {
   return post<{ options: Record<string, unknown> }>('/api/performance/filter-options', { filters })
 }
 
-export async function fetchFatigueCurve(creativeId: number) {
-  const r = await fetch(`/api/fatigue/curve/${creativeId}`)
-  if (!r.ok) throw new Error(await r.text())
-  return r.json() as Promise<{ creative_id: number; series: FatiguePoint[] }>
-}
-
 export async function fetchFatigueCreativeIds(): Promise<number[]> {
   const r = await fetch('/api/fatigue/creative-ids')
   if (!r.ok) throw new Error(await r.text())
@@ -72,19 +66,6 @@ export async function fetchFatigueMLPredictCurve(creativeId: number) {
 
 export async function fetchRecommendations(filters: PerformanceFilters) {
   return post<{ items: RecommendationRow[] }>('/api/recommendations/list', { filters })
-}
-
-export type FatiguePoint = {
-  date: string
-  days_since_launch: number
-  rolling_cpa_usd: number | null
-  baseline_cpa_usd: number
-  degradation: number | null
-  degradation_cpa?: number | null
-  degradation_ctr?: number | null
-  degradation_cvr?: number | null
-  health: number | null
-  rolling_ctr: number | null
 }
 
 export type RecommendationRow = {

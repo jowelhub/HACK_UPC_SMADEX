@@ -6,7 +6,6 @@ from typing import Any
 
 import pandas as pd
 
-from modules.fatigue.service import FatigueService
 from modules.recommendations.creative_metrics import build_creative_metrics_from_daily
 from shared.store import DataStore
 
@@ -23,11 +22,8 @@ def _similarity(row_a: pd.Series, row_b: pd.Series) -> float:
 
 
 class RecommendationService:
-    def __init__(self, store: DataStore, fatigue: FatigueService) -> None:
+    def __init__(self, store: DataStore) -> None:
         self._cs = build_creative_metrics_from_daily(store)
-        self._fatigue = fatigue
-        health = fatigue.health_map()
-        self._cs["health_score"] = self._cs["creative_id"].map(health)
         self._cs["overall_cpa_usd"] = self._cs.apply(
             lambda r: (r["total_spend_usd"] / r["total_conversions"])
             if r["total_conversions"] and r["total_conversions"] > 0
@@ -35,8 +31,17 @@ class RecommendationService:
             axis=1,
         )
 
-    def list_recommendations(self, filters: dict[str, Any] | None = None) -> list[dict[str, Any]]:
-        df = self._cs
+    def list_recommendations(
+        self,
+        filters: dict[str, Any] | None = None,
+        *,
+        ml_health: dict[int, float] | None = None,
+    ) -> list[dict[str, Any]]:
+        df = self._cs.copy()
+        if ml_health:
+            df["health_score"] = df["creative_id"].map(ml_health).fillna(0.55)
+        else:
+            df["health_score"] = 0.55
         if filters and filters.get("campaign_ids"):
             df = df[df["campaign_id"].isin(filters["campaign_ids"])]
         if filters and filters.get("advertiser_name"):
@@ -74,12 +79,12 @@ class RecommendationService:
             urgency = 4
         elif health > 0.8 and roas >= 1.0:
             action = "scale"
-            reason = "Strong health and ROAS >= 1 - candidate to increase budget if inventory allows."
+            reason = "Strong ML agreement on recent CTR and ROAS >= 1 — candidate to scale if inventory allows."
             confidence = 0.68
             urgency = 0
         elif 0.5 < health <= 0.8:
             action = "watch"
-            reason = "Early decay vs baseline possible; watch CPA/CTR over the next week."
+            reason = "Moderate ML fit to recent CTR; monitor or retrain if spend shifts."
             confidence = 0.6
             urgency = 2
         elif health <= 0.5:
@@ -96,7 +101,7 @@ class RecommendationService:
                 action = "rotate"
                 rotate_to = best_alt[1]
                 reason = (
-                    f"Health low; rotate toward creative {rotate_to} - similar style and stronger health score."
+                    f"ML health low; rotate toward creative {rotate_to} — similar style and stronger ML fit on recent CTR."
                 )
                 confidence = min(0.85, 0.5 + best_alt[0])
                 urgency = 5

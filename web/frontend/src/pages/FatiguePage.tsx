@@ -1,22 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import {
-  CartesianGrid,
-  Legend,
-  Line,
-  LineChart,
-  ReferenceLine,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
+import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import {
   fetchFatigueCreativeIds,
-  fetchFatigueCurve,
   fetchFatigueMLPredictCurve,
   fetchFatigueMLStatus,
   type FatigueMLStatus,
-  type FatiguePoint,
   type MLCurvePoint,
 } from '../lib/api'
 
@@ -38,7 +26,6 @@ export function FatiguePage() {
   const [creativeInput, setCreativeInput] = useState('')
   const [selected, setSelected] = useState<number | null>(null)
   const [idOptions, setIdOptions] = useState<number[]>([])
-  const [series, setSeries] = useState<FatiguePoint[]>([])
   const [mlSeries, setMlSeries] = useState<MLCurvePoint[]>([])
   const [err, setErr] = useState<string | null>(null)
   const [mlStatus, setMlStatus] = useState<FatigueMLStatus | null>(null)
@@ -79,15 +66,6 @@ export function FatiguePage() {
   }, [])
 
   useEffect(() => {
-    if (selected == null) {
-      return
-    }
-    void fetchFatigueCurve(selected)
-      .then((r) => setSeries(r.series))
-      .catch((e) => setErr(String(e)))
-  }, [selected])
-
-  useEffect(() => {
     if (selected == null || !mlStatus?.trained) {
       setMlSeries([])
       return
@@ -106,21 +84,6 @@ export function FatiguePage() {
       esRef.current = null
     }
   }, [])
-
-  const mergedChart = useMemo(() => {
-    const byDay = new Map<number, MLCurvePoint>()
-    for (const p of mlSeries) {
-      byDay.set(p.days_since_launch, p)
-    }
-    return series.map((s) => {
-      const m = byDay.get(s.days_since_launch)
-      return {
-        ...s,
-        ml_actual_ctr: m?.actual_ctr,
-        ml_predicted_ctr: m?.predicted_ctr,
-      }
-    })
-  }, [series, mlSeries])
 
   const applyCreativeId = () => {
     setErr(null)
@@ -199,12 +162,13 @@ export function FatiguePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display text-2xl font-bold text-white">Fatigue detection</h1>
+        <h1 className="font-display text-2xl font-bold text-white">Fatigue detection (ML)</h1>
         <p className="mt-1 max-w-3xl text-sm text-slate-400">
-          All signals come from the <span className="text-slate-300">daily fact table</span> in Postgres, joined to{' '}
-          <code className="text-accent">creatives</code> and campaign fields. Charts use rolled-up daily totals and 7-day
-          windows. <span className="text-slate-300">LightGBM + Optuna</span> trains on the same grain (next-day smoothed
-          CTR from the prior 7 days + creative features).
+          Only <span className="text-slate-300">LightGBM + Optuna</span>: next-day smoothed CTR from the prior 7
+          calendar days of delivery (rolled up globally per creative per day) plus static fields from{' '}
+          <code className="text-accent">creatives</code>. Train in the browser (SSE), then compare actual vs predicted CTR
+          over <code className="text-slate-500">days_since_launch</code> — divergence suggests drift / fatigue relative to
+          what the model learned.
         </p>
       </div>
 
@@ -264,7 +228,7 @@ export function FatiguePage() {
             {mlStatus.n_features ?? 0} features
           </p>
         ) : (
-          <p className="mt-3 text-xs text-slate-500">No model in memory yet. Train to enable CTR predictions.</p>
+          <p className="mt-3 text-xs text-slate-500">Train once to enable CTR curves and recommendation health scores.</p>
         )}
 
         {splitInfo ? (
@@ -355,91 +319,36 @@ export function FatiguePage() {
           </datalist>
         </div>
         <button type="button" className="btn-primary" onClick={() => void applyCreativeId()}>
-          Load charts
+          Load chart
         </button>
       </div>
       {err ? <p className="text-sm text-red-400">{err}</p> : null}
 
-      <div className="space-y-4">
-        <div className="rounded-2xl border border-slate-800 bg-slate-900/30 p-4">
-          {selected == null ? (
-            <p className="text-sm text-slate-500">Enter a creative ID and load charts.</p>
-          ) : (
-            <>
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <h2 className="font-display text-lg font-semibold text-white">Creative {selected}</h2>
-                <span className="text-xs text-slate-500">x = days since launch · daily facts only</span>
-              </div>
-              {series.length === 0 ? (
-                <p className="mt-2 text-sm text-slate-500">No series for this ID (not in daily data).</p>
-              ) : (
-                <div className="mt-4 h-72">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={series}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                      <XAxis dataKey="days_since_launch" tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                      <YAxis yAxisId="d" tick={{ fill: '#94a3b8', fontSize: 11 }} domain={[0, 2.5]} />
-                      <YAxis yAxisId="c" orientation="right" tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                      <Tooltip contentStyle={{ background: '#111827', border: '1px solid #334155' }} />
-                      <Legend />
-                      <ReferenceLine yAxisId="d" y={1} stroke="#64748b" strokeDasharray="4 4" label="Baseline" />
-                      <ReferenceLine yAxisId="d" y={1.4} stroke="#f87171" strokeDasharray="4 4" label="Alert" />
-                      <Line
-                        yAxisId="d"
-                        type="monotone"
-                        dataKey="degradation"
-                        name="Degradation"
-                        stroke="#22d3ee"
-                        dot={false}
-                        strokeWidth={2}
-                      />
-                      <Line
-                        yAxisId="d"
-                        type="monotone"
-                        dataKey="degradation_cpa"
-                        name="CPA signal"
-                        stroke="#38bdf8"
-                        dot={false}
-                        strokeWidth={1}
-                        strokeDasharray="3 3"
-                      />
-                      <Line
-                        yAxisId="d"
-                        type="monotone"
-                        dataKey="degradation_ctr"
-                        name="CTR signal"
-                        stroke="#f59e0b"
-                        dot={false}
-                        strokeWidth={1}
-                        strokeDasharray="3 3"
-                      />
-                      <Line
-                        yAxisId="c"
-                        type="monotone"
-                        dataKey="rolling_ctr"
-                        name="Rolling CTR"
-                        stroke="#c084fc"
-                        dot={false}
-                        strokeWidth={2}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
-                </div>
-              )}
-            </>
-          )}
-        </div>
-
-        {selected != null && mlSeries.length > 0 ? (
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/30 p-4">
-            <h3 className="font-display text-sm font-semibold text-white">CTR — actual vs model (smoothed)</h3>
+      <div className="rounded-2xl border border-slate-800 bg-slate-900/30 p-4">
+        {selected == null ? (
+          <p className="text-sm text-slate-500">Enter a creative ID and load the chart.</p>
+        ) : !mlStatus?.trained ? (
+          <p className="text-sm text-slate-500">
+            Creative <span className="font-mono text-accent">{selected}</span> — train the model above to see actual vs
+            predicted CTR.
+          </p>
+        ) : mlSeries.length === 0 ? (
+          <p className="text-sm text-slate-500">
+            No ML points for creative <span className="font-mono text-accent">{selected}</span> (needs enough history
+            after global daily rollup).
+          </p>
+        ) : (
+          <>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="font-display text-lg font-semibold text-white">Creative {selected}</h2>
+              <span className="text-xs text-slate-500">x = days since launch · teacher-forcing on prior 7 days</span>
+            </div>
             <p className="mt-1 text-xs text-slate-500">
-              Teacher-forcing: each day uses the true prior 7-day window. Gaps between lines suggest fatigue /
-              drift the model is tracking.
+              Smoothed CTR target vs model output per day. Wider gaps → harder to predict (often fatigue or mix shifts).
             </p>
-            <div className="mt-3 h-64">
+            <div className="mt-4 h-80">
               <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={mergedChart.filter((d) => d.ml_actual_ctr != null || d.ml_predicted_ctr != null)}>
+                <LineChart data={mlSeries}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                   <XAxis dataKey="days_since_launch" tick={{ fill: '#94a3b8', fontSize: 11 }} />
                   <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} domain={['auto', 'auto']} />
@@ -447,24 +356,15 @@ export function FatiguePage() {
                   <Legend />
                   <Line
                     type="monotone"
-                    dataKey="rolling_ctr"
-                    name="Rolling CTR (7d)"
-                    stroke="#94a3b8"
-                    dot={false}
-                    strokeWidth={1}
-                    strokeDasharray="4 4"
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="ml_actual_ctr"
-                    name="ML target CTR"
+                    dataKey="actual_ctr"
+                    name="Actual CTR (smoothed)"
                     stroke="#f472b6"
                     dot={false}
                     strokeWidth={2}
                   />
                   <Line
                     type="monotone"
-                    dataKey="ml_predicted_ctr"
+                    dataKey="predicted_ctr"
                     name="Predicted CTR"
                     stroke="#34d399"
                     dot={false}
@@ -473,8 +373,8 @@ export function FatiguePage() {
                 </LineChart>
               </ResponsiveContainer>
             </div>
-          </div>
-        ) : null}
+          </>
+        )}
       </div>
     </div>
   )
