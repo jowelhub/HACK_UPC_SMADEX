@@ -3,6 +3,7 @@ import { useParams } from 'react-router-dom'
 import { BackNavLink } from '../components/BackNavLink'
 import { DateRangeFields } from '../components/DateRangeFields'
 import { ExplorerCreativeCard } from '../components/ExplorerCreativeCard'
+import { LlmInsightPanel } from '../components/LlmInsightPanel'
 import { PerformanceResultPanels } from '../components/PerformanceResultPanels'
 import { useExplorerBootstrap } from '../hooks/useExplorerBootstrap'
 import { usePerformanceSlice } from '../hooks/usePerformanceSlice'
@@ -14,6 +15,7 @@ import {
   UI_COPY,
 } from '../lib/performanceLabels'
 import { buildCampaignFilters } from '../lib/performanceQueryDefaults'
+import { buildPerformanceInsightContext } from '../lib/performanceInsightContext'
 import { pathAdvertiser, pathCreative, pathHome } from '../lib/routes'
 import { explorerUi } from '../lib/explorerUi'
 
@@ -30,6 +32,25 @@ export function CampaignDetailPage() {
   }, [advertiser, campaign, dates.from, dates.to])
 
   const { data, err } = usePerformanceSlice(filters, 'creative_id')
+
+  const insightContext = useMemo(
+    () =>
+      advertiser && campaign && dates.from && dates.to
+        ? buildPerformanceInsightContext({
+            entity: 'campaign',
+            headline: campaign.label,
+            subtitleLines: [
+              `Advertiser: ${advertiser.label}`,
+              `Campaign ID ${campaign.campaign_id}`,
+              `${campaign.creatives.length} creatives in this campaign`,
+            ],
+            dateFrom: dates.from,
+            dateTo: dates.to,
+            data,
+          })
+        : null,
+    [advertiser, campaign, dates.from, dates.to, data],
+  )
 
   if (loadErr) {
     return <p className={explorerUi.errorMessage}>{loadErr}</p>
@@ -67,6 +88,7 @@ export function CampaignDetailPage() {
           breakdownTitle={BREAKDOWN_CHART_TITLE.byCreative}
           compactMetrics
         />
+        <LlmInsightPanel context={insightContext} performanceError={err} />
       </div>
 
       <div>

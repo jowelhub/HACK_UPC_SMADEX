@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { BackNavLink } from '../components/BackNavLink'
 import { DateRangeFields } from '../components/DateRangeFields'
+import { LlmInsightPanel } from '../components/LlmInsightPanel'
 import { PerformanceResultPanels } from '../components/PerformanceResultPanels'
 import { useExplorerBootstrap } from '../hooks/useExplorerBootstrap'
 import { usePerformanceSlice } from '../hooks/usePerformanceSlice'
@@ -14,6 +15,7 @@ import {
   formatMetaLine,
 } from '../lib/performanceLabels'
 import { buildAdvertiserFilters } from '../lib/performanceQueryDefaults'
+import { buildPerformanceInsightContext } from '../lib/performanceInsightContext'
 import { pathCampaign, pathHome } from '../lib/routes'
 import { explorerUi } from '../lib/explorerUi'
 
@@ -29,6 +31,25 @@ export function AdvertiserDetailPage() {
   }, [advertiser, dates.from, dates.to])
 
   const { data, err } = usePerformanceSlice(filters, 'campaign_id')
+
+  const insightContext = useMemo(
+    () =>
+      advertiser && dates.from && dates.to
+        ? buildPerformanceInsightContext({
+            entity: 'advertiser',
+            headline: advertiser.label,
+            subtitleLines: [
+              formatMetaLine(advertiser.vertical, advertiser.hq_region),
+              `Advertiser ID ${advertiser.advertiser_id}`,
+              `${advertiser.campaigns.length} campaigns in hierarchy`,
+            ],
+            dateFrom: dates.from,
+            dateTo: dates.to,
+            data,
+          })
+        : null,
+    [advertiser, dates.from, dates.to, data],
+  )
 
   if (loadErr) {
     return <p className={explorerUi.errorMessage}>{loadErr}</p>
@@ -66,6 +87,7 @@ export function AdvertiserDetailPage() {
           breakdownTitle={BREAKDOWN_CHART_TITLE.byCampaign}
           compactMetrics
         />
+        <LlmInsightPanel context={insightContext} performanceError={err} />
       </div>
 
       <div>

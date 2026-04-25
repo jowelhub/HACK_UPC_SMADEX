@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { BackNavLink } from '../components/BackNavLink'
 import { DateRangeFields } from '../components/DateRangeFields'
+import { LlmInsightPanel } from '../components/LlmInsightPanel'
 import { PerformanceResultPanels } from '../components/PerformanceResultPanels'
 import { creativeAssetUrl } from '../lib/api'
 import { useExplorerBootstrap } from '../hooks/useExplorerBootstrap'
@@ -13,6 +14,7 @@ import {
 } from '../lib/hierarchyResolve'
 import { PERFORMANCE_SECTION, UI_COPY, formatMetaLine } from '../lib/performanceLabels'
 import { buildCreativeFilters } from '../lib/performanceQueryDefaults'
+import { buildPerformanceInsightContext } from '../lib/performanceInsightContext'
 import { pathAdvertiser, pathCampaign, pathHome } from '../lib/routes'
 import { explorerUi } from '../lib/explorerUi'
 
@@ -34,6 +36,25 @@ export function CreativeDetailPage() {
   }, [advertiser, creative, dates.from, dates.to])
 
   const { data, err } = usePerformanceSlice(filters, null)
+
+  const insightContext = useMemo(
+    () =>
+      advertiser && campaign && creative && dates.from && dates.to
+        ? buildPerformanceInsightContext({
+            entity: 'creative',
+            headline: creative.label,
+            subtitleLines: [
+              `Advertiser: ${advertiser.label}`,
+              `Campaign: ${campaign.label}`,
+              `Creative ID ${creative.creative_id}`,
+            ],
+            dateFrom: dates.from,
+            dateTo: dates.to,
+            data,
+          })
+        : null,
+    [advertiser, campaign, creative, dates.from, dates.to, data],
+  )
 
   const [imgOk, setImgOk] = useState(true)
   useEffect(() => {
@@ -100,6 +121,7 @@ export function CreativeDetailPage() {
       <div className="relative z-10 min-h-0">
         <h2 className={explorerUi.performanceLabel}>{PERFORMANCE_SECTION.heading}</h2>
         <PerformanceResultPanels data={data} err={err} breakdownTitle={null} />
+        <LlmInsightPanel context={insightContext} performanceError={err} />
       </div>
     </div>
   )
