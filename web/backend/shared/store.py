@@ -84,7 +84,8 @@ class DataStore:
         from sqlalchemy import create_engine
 
         db_url = database_url if database_url is not None else get_database_url()
-        engine = create_engine(db_url, pool_pre_ping=True)
+        self.engine = create_engine(db_url, pool_pre_ping=True)
+        engine = self.engine
 
         advertisers = pd.read_sql_table("advertisers", con=engine)
         campaigns = pd.read_sql_table("campaigns", con=engine)

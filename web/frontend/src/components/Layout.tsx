@@ -4,6 +4,7 @@ const nav = [
   { to: '/performance', label: 'Performance' },
   { to: '/fatigue', label: 'Fatigue' },
   { to: '/recommendations', label: 'Recommendations' },
+  { to: '/copilot', label: 'Copilot' },
 ]
 
 export function Layout() {

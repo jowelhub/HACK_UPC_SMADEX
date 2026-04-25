@@ -21,6 +21,7 @@ from modules.fatigue.ml_ctr import (
     train_ctr_model_stream,
 )
 from modules.performance.service import PerformanceService
+from modules.agent.sql_readonly import run_readonly_query
 from modules.recommendations.service import RecommendationService
 from shared.store import get_store
 
@@ -178,6 +179,19 @@ def fatigue_ml_predict_curve(creative_id: int, request: Request) -> dict[str, An
     return {"creative_id": creative_id, "trained": True, "series": series}
 
 
+class AgentSqlBody(BaseModel):
+    sql: str = Field(min_length=1, max_length=200_000)
+
+
+def _check_agent_sql_token(request: Request) -> None:
+    expected = os.environ.get("AGENT_SQL_TOKEN", "").strip()
+    if not expected:
+        return
+    got = request.headers.get("X-Agent-Token", "").strip()
+    if got != expected:
+        raise HTTPException(status_code=403, detail="Invalid or missing X-Agent-Token for agent SQL.")
+
+
 class RecommendationsBody(BaseModel):
     filters: dict[str, Any] = Field(default_factory=dict)
 
@@ -187,3 +201,20 @@ def recommendations_list(body: RecommendationsBody, request: Request) -> dict[st
     svc: RecommendationService = request.app.state.recommendations
     ml_health = getattr(request.app.state, "fatigue_ml_health", None)
     return {"items": svc.list_recommendations(body.filters, ml_health=ml_health)}
+
+
+@app.post("/api/agent/sql")
+def agent_readonly_sql(body: AgentSqlBody, request: Request) -> dict[str, Any]:
+    """
+    Read-only SQL for the analytics agent (executed in Postgres with row limits).
+    Optional shared secret: set AGENT_SQL_TOKEN and pass X-Agent-Token from the agent service.
+    """
+    _check_agent_sql_token(request)
+    store = request.app.state.store
+    max_rows = 3000
+    try:
+        return run_readonly_query(store.engine, body.sql, max_rows=max_rows)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="SQL execution failed") from e

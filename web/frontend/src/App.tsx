@@ -4,6 +4,7 @@ import { Dashboard } from './pages/Dashboard'
 import { FatiguePage } from './pages/FatiguePage'
 import { PerformancePage } from './pages/PerformancePage'
 import { RecommendationsPage } from './pages/RecommendationsPage'
+import { ChatPage } from './pages/ChatPage'
 
 export default function App() {
   return (
@@ -15,6 +16,7 @@ export default function App() {
             <Route path="performance" element={<PerformancePage />} />
             <Route path="fatigue" element={<FatiguePage />} />
             <Route path="recommendations" element={<RecommendationsPage />} />
+            <Route path="copilot" element={<ChatPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>

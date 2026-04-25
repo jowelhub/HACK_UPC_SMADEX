@@ -31,6 +31,8 @@ services:
     environment:
       DATABASE_URL: postgresql+psycopg2://smadex:smadex@postgres:5432/smadex
       IMPORT_DATA_DIR: /import
+      # Optional: if set, the AI agent must send the same value as X-Agent-Token to POST /api/agent/sql
+      AGENT_SQL_TOKEN: ${AGENT_SQL_TOKEN:-}
     volumes:
       - ../data_science/data:/import:ro
     ports:
@@ -45,6 +47,33 @@ services:
       retries: 5
       start_period: 120s
 
+  # Vercel AI SDK + Google (Gemma 4) + E2B code sandbox; proxies SQL to backend.
+  ai-agent:
+    build:
+      context: .
+      dockerfile: ai-agent/Dockerfile
+    environment:
+      PORT: 3001
+      BACKEND_URL: http://backend:8000
+      GOOGLE_GENERATIVE_AI_API_KEY: ${GOOGLE_GENERATIVE_AI_API_KEY:-}
+      CHAT_MODEL: ${CHAT_MODEL:-gemma-4-26b-a4b-it}
+      AGENT_SQL_TOKEN: ${AGENT_SQL_TOKEN:-}
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:3001/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 20s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+
   frontend:
     build:
       context: ./frontend
@@ -53,6 +82,8 @@ services:
       - "8080:80"
     depends_on:
       backend:
+        condition: service_healthy
+      ai-agent:
         condition: service_healthy
 
 volumes:

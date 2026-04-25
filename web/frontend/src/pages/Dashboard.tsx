@@ -4,13 +4,14 @@ const cards = [
   { to: '/performance', title: 'Performance' },
   { to: '/fatigue', title: 'Fatigue' },
   { to: '/recommendations', title: 'Recommendations' },
+  { to: '/copilot', title: 'Analytics copilot' },
 ]
 
 export function Dashboard() {
   return (
     <div className="space-y-8">
       <h1 className="font-display text-2xl font-semibold tracking-tight text-stone-900">Overview</h1>
-      <ul className="grid gap-3 sm:grid-cols-3">
+      <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {cards.map((c) => (
           <li key={c.to}>
             <Link
