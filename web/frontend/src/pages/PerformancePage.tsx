@@ -25,11 +25,15 @@ import {
 } from '../lib/api'
 
 const ASIDE_W_KEY = 'perfAsideW'
-/** Five campaign rows (~2rem each). */
-const CAMPAIGN_LIST_H = 'h-[10.25rem]'
-/** Six creative rows. */
-const CREATIVE_LIST_H = 'h-[12.25rem]'
+/** Fixed list viewport; overflow-y when many rows (desktop + mobile). */
+const CAMPAIGN_LIST_SCROLL =
+  'flex h-[10.25rem] min-h-0 flex-col overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]'
+const CREATIVE_LIST_SCROLL =
+  'flex h-[12.25rem] min-h-0 flex-col overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]'
 const ROW_MIN = 'min-h-[2rem]'
+/** Desktop: fills panel and scrolls. Mobile: natural height; whole aside scrolls. */
+const ADVERTISER_LIST_BODY =
+  'flex flex-col overscroll-contain [-webkit-overflow-scrolling:touch] max-lg:flex-none max-lg:overflow-visible lg:min-h-0 lg:flex-1 lg:overflow-y-auto'
 /** Space for fixed mobile tab bar + safe area */
 const MOBILE_TAB_PAD = 'pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))]'
 
@@ -317,7 +321,7 @@ export function PerformancePage() {
         className={`flex min-h-0 w-full flex-1 flex-col overflow-hidden lg:h-full lg:min-h-0 lg:flex-row lg:items-stretch lg:overflow-hidden ${MOBILE_TAB_PAD} lg:pb-0`}
       >
         <aside
-          className={`flex min-h-0 flex-col gap-2 overflow-hidden border-stone-200 bg-canvas px-2 py-3 sm:px-3 lg:h-full lg:min-h-0 lg:max-w-[min(45vw,560px)] lg:shrink-0 lg:border-r lg:bg-white lg:py-4 ${
+          className={`flex min-h-0 flex-col gap-2 border-stone-200 bg-canvas px-2 py-3 max-lg:overflow-y-auto max-lg:overscroll-y-contain sm:px-3 lg:h-full lg:min-h-0 lg:max-w-[min(45vw,560px)] lg:shrink-0 lg:overflow-hidden lg:border-r lg:bg-white lg:py-4 ${
             showSelection ? 'flex-1 lg:flex-none' : 'hidden'
           }`}
           style={{ width: isLg ? asideW : undefined }}
@@ -327,7 +331,7 @@ export function PerformancePage() {
             <h1 className="font-display text-lg font-semibold tracking-tight text-stone-900">Performance</h1>
           </div>
 
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-sm border border-stone-200 bg-white">
+          <div className="flex min-w-0 flex-col rounded-sm border border-stone-200 bg-white max-lg:shrink-0 lg:min-h-0 lg:flex-1 lg:overflow-hidden">
             <div className="shrink-0 space-y-2 border-b border-stone-200 p-2">
               <div className="grid grid-cols-2 gap-2">
                 <label className="flex flex-col gap-0.5">
@@ -375,11 +379,11 @@ export function PerformancePage() {
               </div>
             </div>
 
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col border-b border-stone-200">
+            <div className="flex min-w-0 shrink-0 flex-col border-b border-stone-200 lg:flex-[1_0_0%] lg:min-h-[10rem] lg:overflow-hidden">
               <div className="shrink-0 border-b border-stone-100 bg-stone-50 px-2 py-1 text-[10px] font-medium uppercase text-stone-600">
                 Advertiser
               </div>
-              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]">
+              <div className={ADVERTISER_LIST_BODY}>
                 <button type="button" className={pickListRow(scope.kind === 'all')} onClick={() => setScope({ kind: 'all' })}>
                   All
                 </button>
@@ -401,7 +405,7 @@ export function PerformancePage() {
               <div className="shrink-0 border-b border-stone-100 bg-stone-50 px-2 py-1 text-[10px] font-medium uppercase text-stone-600">
                 Campaign
               </div>
-              <div className={`flex flex-col overflow-y-auto overscroll-contain ${CAMPAIGN_LIST_H}`}>
+              <div className={CAMPAIGN_LIST_SCROLL}>
                 {!selectedAdvertiser ? (
                   dashedSlots(5)
                 ) : campaignRows.length === 0 ? (
@@ -431,7 +435,7 @@ export function PerformancePage() {
               <div className="shrink-0 border-b border-stone-100 bg-stone-50 px-2 py-1 text-[10px] font-medium uppercase text-stone-600">
                 Creative
               </div>
-              <div className={`flex flex-col overflow-y-auto overscroll-contain ${CREATIVE_LIST_H}`}>
+              <div className={CREATIVE_LIST_SCROLL}>
                 {!selectedCampaign ? (
                   dashedSlots(6)
                 ) : (
