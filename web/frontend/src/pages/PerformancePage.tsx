@@ -444,11 +444,7 @@ export function PerformancePage() {
               <MetricCard label="CVR" value={fmtPct(summary.overall_cvr as number)} />
               <MetricCard label="IPM" value={fmt(summary.overall_ipm as number)} />
               <MetricCard label="ROAS" value={fmt(summary.overall_roas as number)} />
-              <MetricCard
-                label="Rows"
-                value={fmt(data?.row_count, 0)}
-                hint={`${summary.distinct_creatives} cr · ${summary.distinct_campaigns} camp · ${Number(summary.distinct_advertisers ?? 0)} adv`}
-              />
+              <MetricCard label="Rows" value={fmt(data?.row_count, 0)} />
             </div>
 
             {scope.kind === 'creative' ? (
