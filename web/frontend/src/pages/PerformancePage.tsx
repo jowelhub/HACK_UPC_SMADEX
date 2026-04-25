@@ -1,16 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Legend,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
+import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import { MetricCard } from '../components/MetricCard'
 import type { LabeledOption } from '../components/MultiSelect'
 import { MultiSelect } from '../components/MultiSelect'
@@ -97,7 +86,6 @@ function optionsForChip(
 export function PerformancePage() {
   const [opts, setOpts] = useState<Record<string, unknown> | null>(null)
   const [filters, setFilters] = useState<PerformanceFilters>({})
-  const [breakdown, setBreakdown] = useState<string>('')
   const [lbMetric, setLbMetric] = useState('ctr')
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState<string | null>(null)
@@ -156,39 +144,33 @@ export function PerformancePage() {
     }))
   }
 
-  const run = async () => {
+  useEffect(() => {
+    let cancelled = false
     setLoading(true)
     setErr(null)
-    try {
-      const res = await fetchPerformanceQuery({
-        filters,
-        timeseries_grain: 'day',
-        breakdown: breakdown || null,
-        leaderboard: { by: 'creative_id', metric: lbMetric, limit: 12 },
-      })
-      setData(res)
-    } catch (e) {
-      setErr(String(e))
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  useEffect(() => {
     void fetchPerformanceQuery({
-      filters: {},
+      filters,
       timeseries_grain: 'day',
       breakdown: null,
-      leaderboard: { by: 'creative_id', metric: 'ctr', limit: 12 },
+      leaderboard: { by: 'creative_id', metric: lbMetric, limit: 12 },
     })
-      .then(setData)
-      .catch((e) => setErr(String(e)))
-  }, [])
+      .then((res) => {
+        if (!cancelled) setData(res)
+      })
+      .catch((e) => {
+        if (!cancelled) setErr(String(e))
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [filters, lbMetric])
 
   const summary = data?.summary
 
   const ts = useMemo(() => data?.timeseries ?? [], [data])
-  const br = useMemo(() => data?.breakdown ?? [], [data])
   const lb = useMemo(() => data?.leaderboard ?? [], [data])
 
   const chipKeys: { key: keyof PerformanceFilters; label: string; optKey: string; labeledKey?: string }[] = [
@@ -314,26 +296,52 @@ export function PerformancePage() {
           <p className="text-xs text-slate-500">
             Narrow in order: advertisers, then their campaigns, then creatives in those campaigns. Lists update as you go.
           </p>
-          {entityChipKeys.map(({ key, label, optKey, labeledKey }, i) => (
-            <div
-              key={String(key)}
-              className={i === 0 ? '' : 'relative ml-1 border-l-2 border-slate-700/80 pl-4 pt-1 sm:ml-2 sm:pl-5'}
-            >
-              {i > 0 ? (
-                <p className="mb-2 text-[11px] leading-relaxed text-slate-500">
-                  {i === 1
-                    ? 'Campaigns for the advertisers above (full list when no advertisers are selected).'
-                    : 'Narrowed by selected campaigns when set; otherwise by selected advertisers; otherwise the full catalog.'}
-                </p>
-              ) : null}
+
+          {/* Level 1 — advertisers */}
+          <div>
+            <MultiSelect
+              label={entityChipKeys[0].label}
+              options={optionsForChip(opts, entityChipKeys[0].optKey, entityChipKeys[0].labeledKey)}
+              value={(filters[entityChipKeys[0].key] as (string | number)[]) || []}
+              onChange={(v) => setFilters((f) => ({ ...f, [entityChipKeys[0].key]: v.length ? v : undefined }))}
+              searchable
+              searchPlaceholder="Search advertisers…"
+              maxChipRows={3}
+            />
+          </div>
+
+          {/* Level 2 — campaigns (branch under advertisers) */}
+          <div className="relative ml-0 border-l-2 border-slate-700/90 pl-4 sm:ml-1 sm:pl-6">
+            <p className="mb-2 text-[11px] leading-relaxed text-slate-500">
+              Campaigns for the advertisers above (full list when no advertisers are selected).
+            </p>
+            <MultiSelect
+              label={entityChipKeys[1].label}
+              options={optionsForChip(opts, entityChipKeys[1].optKey, entityChipKeys[1].labeledKey)}
+              value={(filters[entityChipKeys[1].key] as (string | number)[]) || []}
+              onChange={(v) => setFilters((f) => ({ ...f, [entityChipKeys[1].key]: v.length ? v : undefined }))}
+              searchable
+              searchPlaceholder="Search campaigns…"
+              maxChipRows={3}
+            />
+
+            {/* Level 3 — creatives (nested under campaigns) */}
+            <div className="relative mt-4 border-l-2 border-slate-600/80 pl-4 sm:pl-6">
+              <p className="mb-2 text-[11px] leading-relaxed text-slate-500">
+                Narrowed by selected campaigns when set; otherwise by selected advertisers; otherwise the full catalog. Each label is
+                campaign name plus creative text (full text, scroll the list if needed).
+              </p>
               <MultiSelect
-                label={label}
-                options={optionsForChip(opts, optKey, labeledKey)}
-                value={(filters[key] as (string | number)[]) || []}
-                onChange={(v) => setFilters((f) => ({ ...f, [key]: v.length ? v : undefined }))}
+                label={entityChipKeys[2].label}
+                options={optionsForChip(opts, entityChipKeys[2].optKey, entityChipKeys[2].labeledKey)}
+                value={(filters[entityChipKeys[2].key] as (string | number)[]) || []}
+                onChange={(v) => setFilters((f) => ({ ...f, [entityChipKeys[2].key]: v.length ? v : undefined }))}
+                searchable
+                searchPlaceholder="Search creatives…"
+                maxChipRows={3}
               />
             </div>
-          ))}
+          </div>
         </div>
         <details className="mt-5 rounded-lg border border-slate-800 bg-ink-950/50 p-3">
           <summary className="cursor-pointer select-none text-sm font-medium text-slate-300">
@@ -390,32 +398,7 @@ export function PerformancePage() {
             </div>
           </div>
         </details>
-
-        <div className="mt-4 flex flex-wrap items-end gap-3">
-          <div>
-            <div className="mb-1 text-xs font-medium uppercase text-slate-500">Breakdown</div>
-            <select className="input" value={breakdown} onChange={(e) => setBreakdown(e.target.value)}>
-              <option value="">None</option>
-              <option value="country">Country</option>
-              <option value="os">OS</option>
-              <option value="format">Format</option>
-              <option value="vertical">Vertical</option>
-            </select>
-          </div>
-          <div>
-            <div className="mb-1 text-xs font-medium uppercase text-slate-500">Leaderboard sort</div>
-            <select className="input" value={lbMetric} onChange={(e) => setLbMetric(e.target.value)}>
-              <option value="ctr">CTR</option>
-              <option value="cpa">CPA</option>
-              <option value="roas">ROAS</option>
-              <option value="ipm">IPM</option>
-            </select>
-          </div>
-          <button type="button" className="btn-primary" disabled={loading} onClick={() => run()}>
-            {loading ? 'Loading…' : 'Apply filters'}
-          </button>
-        </div>
-        {err ? <p className="mt-3 text-sm text-red-400">{err}</p> : null}
+        {err ? <p className="mt-4 text-sm text-red-400">{err}</p> : null}
       </section>
 
       {summary ? (
@@ -435,49 +418,40 @@ export function PerformancePage() {
             />
           </div>
 
-          <div className="grid gap-4 lg:grid-cols-2">
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/30 p-4">
-              <h3 className="font-display text-sm font-semibold text-white">CTR & spend over time</h3>
-              <div className="mt-3 h-64 sm:h-72">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={ts}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                    <XAxis dataKey="date" tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                    <YAxis yAxisId="l" tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                    <YAxis yAxisId="r" orientation="right" tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                    <Tooltip contentStyle={{ background: '#111827', border: '1px solid #334155' }} />
-                    <Legend />
-                    <Line yAxisId="l" type="monotone" dataKey="ctr" name="CTR" stroke="#22d3ee" dot={false} strokeWidth={2} />
-                    <Line yAxisId="r" type="monotone" dataKey="spend_usd" name="Spend" stroke="#a78bfa" dot={false} strokeWidth={2} />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/30 p-4">
+            <h3 className="font-display text-sm font-semibold text-white">CTR & spend over time</h3>
+            <div className="mt-3 h-64 sm:h-72">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={ts}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                  <XAxis dataKey="date" tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                  <YAxis yAxisId="l" tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                  <YAxis yAxisId="r" orientation="right" tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                  <Tooltip contentStyle={{ background: '#111827', border: '1px solid #334155' }} />
+                  <Legend />
+                  <Line yAxisId="l" type="monotone" dataKey="ctr" name="CTR" stroke="#22d3ee" dot={false} strokeWidth={2} />
+                  <Line yAxisId="r" type="monotone" dataKey="spend_usd" name="Spend" stroke="#a78bfa" dot={false} strokeWidth={2} />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
-
-            {breakdown ? (
-              <div className="rounded-2xl border border-slate-800 bg-slate-900/30 p-4">
-                <h3 className="font-display text-sm font-semibold text-white">Breakdown | {breakdown}</h3>
-                <div className="mt-3 h-64 sm:h-72">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={br}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                      <XAxis dataKey={breakdown} tick={{ fill: '#94a3b8', fontSize: 10 }} interval={0} angle={-25} textAnchor="end" height={60} />
-                      <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                      <Tooltip contentStyle={{ background: '#111827', border: '1px solid #334155' }} />
-                      <Bar dataKey="ctr" fill="#22d3ee" name="CTR" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              </div>
-            ) : (
-              <div className="rounded-2xl border border-dashed border-slate-700 bg-slate-900/20 p-6 text-sm text-slate-500">
-                Select a breakdown dimension to compare CTR across segments.
-              </div>
-            )}
           </div>
 
           <div className="rounded-2xl border border-slate-800 bg-slate-900/30 p-4">
-            <h3 className="font-display text-sm font-semibold text-white">Creative leaderboard</h3>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <h3 className="font-display text-sm font-semibold text-white">Creative leaderboard</h3>
+              <div className="flex flex-wrap items-center gap-2">
+                <label className="flex flex-col gap-1">
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Sort by</span>
+                  <select className="input py-1.5 text-sm" value={lbMetric} onChange={(e) => setLbMetric(e.target.value)} aria-label="Leaderboard sort metric">
+                    <option value="ctr">CTR</option>
+                    <option value="cpa">CPA</option>
+                    <option value="roas">ROAS</option>
+                    <option value="ipm">IPM</option>
+                  </select>
+                </label>
+                {loading ? <span className="text-xs text-slate-500">Updating…</span> : null}
+              </div>
+            </div>
             <div className="mt-3 overflow-x-auto">
               <table className="w-full min-w-[480px] text-left text-sm">
                 <thead>
@@ -493,7 +467,7 @@ export function PerformancePage() {
                   {lb.map((row) => (
                     <tr key={String(row.creative_id)} className="border-b border-slate-800/60 text-slate-300">
                       <td className="py-2">
-                        <div className="max-w-[220px] truncate text-sm text-slate-200" title={String(row.creative_label || '')}>
+                        <div className="max-w-md whitespace-normal break-words text-sm text-slate-200">
                           {String(row.creative_label || row.creative_id)}
                         </div>
                         <div className="font-mono text-[10px] text-slate-500">#{String(row.creative_id)}</div>
