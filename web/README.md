@@ -1,0 +1,97 @@
+# Web stack (`web/`)
+
+Dockerized **PostgreSQL + FastAPI + React** demo for the Smadex Creative Intelligence hackathon. The UI calls the API; the API reads **only from Postgres** (pandas `read_sql_table` + in-memory joins). There is **no CSV read on each HTTP request**.
+
+---
+
+## Smadex context (why this app exists)
+
+**Smadex** is modeled as a **DSP**: a system that runs **campaigns** for **advertisers**, each campaign having multiple **creatives** (images/videos/playables). Marketers care about **delivery KPIs** (CTR, CVR, spend efficiency) and **creative fatigue** (performance decay over time). This UI exposes **performance exploration**, **fatigue-style signals**, and **recommendations** APIs backed by the synthetic dataset loaded into Postgres.
+
+For full **ad-tech vocabulary**, **hackathon judging goals**, and **column-by-column CSV documentation**, see the repo root **[README.md](../README.md)**. The CSVs that seed the database live under **`../data_science/data/`**; see **[../data_science/README.md](../data_science/README.md)** for file-level intent.
+
+---
+
+## PostgreSQL model (table mode)
+
+Schema DDL: **`db/schema.sql`**. Tables mirror the CSVs used for seeding:
+
+| Table | Source CSV (under `data_science/data/`) |
+|-------|----------------------------------------|
+| `advertisers` | `advertisers.csv` |
+| `campaigns` | `campaigns.csv` |
+| `creatives` | `creatives.csv` |
+| `creative_daily_country_os_stats` | `creative_daily_country_os_stats.csv` |
+| `creative_summary` | `creative_summary.csv` |
+
+**Note:** `campaign_summary.csv` exists for analysis in `data_science/` but is **not** loaded by the current web seed scripts (same tables as before the split). Extend `ensure_db_seeded` / `bootstrap_pg_from_csv` if you need it in Postgres.
+
+---
+
+## Automatic seeding (Docker)
+
+On **every backend container start**, `python -m scripts.ensure_db_seeded` runs **before** Uvicorn:
+
+1. If core tables are missing → apply **`db/schema.sql`**.
+2. Count rows in **`creative_daily_country_os_stats`**.
+3. If count **> 0** → log **`skip import`** and **do nothing else** (no truncate, no CSV load).
+4. If count **== 0** → **`TRUNCATE`** the five seeded tables (restart identities) → load CSVs from **`IMPORT_DATA_DIR`** (Compose: **`/import`**, bind-mounted from **`../data_science/data`**).
+
+So your log line **`fact table empty; truncating (if any) and importing CSVs`** means the fact table had **zero** rows (fresh volume or wiped data). A second `docker compose up` with the same volume should show **`creative_daily_country_os_stats has … rows; skip import`**.
+
+**Reset Postgres data completely:** from this directory run `docker compose down -v` then `up` again (removes the named volume).
+
+---
+
+## Run (Docker)
+
+```bash
+cd web
+docker compose up --build
+```
+
+| Service | URL / port |
+|---------|------------|
+| UI | http://localhost:8080 |
+| API | http://localhost:8000 |
+| Postgres | localhost:5432 — user / password / DB: `smadex` / `smadex` / `smadex` |
+
+**Environment (backend):**
+
+| Variable | Meaning |
+|----------|---------|
+| `DATABASE_URL` | SQLAlchemy URL (e.g. `postgresql+psycopg2://smadex:smadex@postgres:5432/smadex`) |
+| `IMPORT_DATA_DIR` | Directory containing the CSVs (default in image: `/import`) |
+| `SCHEMA_SQL_PATH` | Optional override path to `schema.sql` |
+
+---
+
+## Run (local dev, no full stack)
+
+1. Postgres running and empty (or already seeded).
+2. Seed once if needed (from repo root, with `web/backend` deps installed):
+
+   ```bash
+   export DATABASE_URL=postgresql+psycopg2://USER:PASS@localhost:5432/smadex
+   export IMPORT_DATA_DIR=/absolute/path/to/HACK_UPC_SMADEX/data_science/data
+   python web/backend/scripts/bootstrap_pg_from_csv.py
+   ```
+
+3. API: `cd web/backend && uvicorn main:app --reload --port 8000` with `DATABASE_URL` set.  
+4. UI: `cd web/frontend && npm install && npm run dev` (Vite; ensure CORS origins match your dev URL).
+
+---
+
+## API surface (high level)
+
+- **`/api/health`** — Liveness for Compose healthchecks.
+- **`/api/performance/*`** — Sliced metrics from the enriched daily frame.
+- **`/api/fatigue/*`** — Fatigue-oriented views.
+- **`/api/recommendations/*`** — Recommendation helpers.
+
+---
+
+## Related docs
+
+- **Domain + columns:** [../README.md](../README.md)
+- **CSV-first analysis:** [../data_science/README.md](../data_science/README.md)

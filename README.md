@@ -2,6 +2,11 @@
 
 Use this file as **persistent context** for LLMs, teammates, or future you. It explains the **business domain**, the **hackathon goal**, how **datasets relate**, and **every column** in the CSVs (verified against `data_science/data/` headers and `data_science/data/data_dictionary.csv`).
 
+**Where to start**
+
+- **Notebooks and CSV analysis (no Docker required):** [data_science/README.md](data_science/README.md)
+- **Postgres + API + UI (Docker):** [web/README.md](web/README.md)
+
 ---
 
 ## 1. What is Smadex and what does this challenge assume?
@@ -297,6 +302,11 @@ From `data_science/data/README.md` and dataset design:
 
 ## 8. This repository (v1 implementation snapshot)
 
+Shorter guides with the same domain story in context:
+
+- [data_science/README.md](data_science/README.md) — data science tree, each CSV explained, joins.
+- [web/README.md](web/README.md) — Docker, Postgres tables vs CSVs, **empty vs non-empty DB seeding** behavior.
+
 Layout:
 
 - **`data_science/`** — CSVs under `data_science/data/` (and `assets/`), plus notebooks under `data_science/notebooks/`. Use this tree for analysis and experiments **without** running the web stack.
@@ -337,7 +347,7 @@ cd web && docker compose up --build
 # Postgres: localhost:5432  user/password/db: smadex / smadex / smadex
 ```
 
-Compose mounts `../data_science/data` read-only at **`/import`** on the backend. On each backend start, `scripts.ensure_db_seeded` runs: if core tables are missing it applies `web/db/schema.sql`; if **`creative_daily_country_os_stats` has rows**, CSV import is skipped; if it is **empty**, tables are truncated and CSVs are loaded from `/import`.
+Compose mounts `../data_science/data` read-only at **`/import`** on the backend. On each backend start, `scripts.ensure_db_seeded` runs: if core tables are missing it applies `web/db/schema.sql`; if **`creative_daily_country_os_stats` has at least one row**, CSV import is **skipped** (you should see `[ensure_db_seeded] creative_daily_country_os_stats has N rows; skip import` in logs); if the fact table is **empty**, tables are truncated and CSVs are loaded from `/import`.
 
 **Reset the database** (force a full re-seed on next start): `cd web && docker compose down -v` then `up` again (removes the named volume `smadex_pgdata`).
 
