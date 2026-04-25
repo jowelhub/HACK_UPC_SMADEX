@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react'
+import {
+  useCallback,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+} from 'react'
 import { ChatMarkdown } from '../components/ChatMarkdown'
 
 type Row = {
@@ -37,23 +43,40 @@ function parseSseDataLines(buffer: string): { events: StreamEvent[]; rest: strin
   return { events, rest }
 }
 
+const SCROLL_PIN_THRESHOLD_PX = 80
+
 export function ChatPage() {
   const [input, setInput] = useState('')
   const [rows, setRows] = useState<Row[]>([])
   const [pending, setPending] = useState<Row | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const bottom = useRef<HTMLDivElement | null>(null)
+  /** When true, new tokens scroll the thread to the bottom; scrolling up clears this. */
+  const [pinnedToBottom, setPinnedToBottom] = useState(true)
+  /** Global visibility for model thinking stream (thoughts still accumulate when off). */
+  const [showThinking, setShowThinking] = useState(false)
 
-  useEffect(() => {
-    bottom.current?.scrollIntoView({ behavior: 'smooth' })
-  }, [rows, pending, busy])
+  const bottom = useRef<HTMLDivElement | null>(null)
+  const scrollElRef = useRef<HTMLDivElement | null>(null)
+
+  const updatePinnedFromScroll = useCallback(() => {
+    const el = scrollElRef.current
+    if (!el) return
+    const dist = el.scrollHeight - el.scrollTop - el.clientHeight
+    setPinnedToBottom(dist < SCROLL_PIN_THRESHOLD_PX)
+  }, [])
+
+  useLayoutEffect(() => {
+    if (!pinnedToBottom) return
+    bottom.current?.scrollIntoView({ block: 'end', behavior: busy ? 'auto' : 'smooth' })
+  }, [rows, pending, busy, pinnedToBottom, showThinking])
 
   const send = useCallback(async () => {
     const t = input.trim()
     if (!t || busy) return
     setInput('')
     setError(null)
+    setPinnedToBottom(true)
     const u: Row = { id: id(), role: 'user', text: t }
     const nextRows: Row[] = [...rows, u]
     setRows(nextRows)
@@ -163,6 +186,13 @@ export function ChatPage() {
     }
   }, [busy, input, rows])
 
+  const jumpToLatest = useCallback(() => {
+    setPinnedToBottom(true)
+    requestAnimationFrame(() => {
+      bottom.current?.scrollIntoView({ block: 'end', behavior: 'smooth' })
+    })
+  }, [])
+
   const onComposerKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
@@ -187,6 +217,15 @@ export function ChatPage() {
             getDatabaseSchema
           </code>
         </p>
+        <label className="mt-3 flex cursor-pointer items-center gap-2 text-xs text-stone-600 sm:text-sm">
+          <input
+            type="checkbox"
+            className="h-3.5 w-3.5 rounded border-stone-300 text-brand-600 focus:ring-brand/30"
+            checked={showThinking}
+            onChange={(e) => setShowThinking(e.target.checked)}
+          />
+          <span>Show model thinking</span>
+        </label>
       </header>
 
       {error ? (
@@ -200,7 +239,18 @@ export function ChatPage() {
 
       {/* Thread: only this region scrolls */}
       <div className="relative min-h-0 min-w-0 flex-1">
+        {!pinnedToBottom && (busy || pending) ? (
+          <button
+            type="button"
+            className="absolute bottom-2 right-2 z-10 rounded-full border border-stone-200/90 bg-white/95 px-3 py-1.5 text-xs font-medium text-stone-700 shadow-md backdrop-blur-sm hover:bg-stone-50 sm:bottom-3 sm:right-3"
+            onClick={jumpToLatest}
+          >
+            Latest ↓
+          </button>
+        ) : null}
         <div
+          ref={scrollElRef}
+          onScroll={updatePinnedFromScroll}
           className="h-full min-h-0 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch] pt-2 pl-0 sm:pt-3"
           role="log"
           aria-live="polite"
@@ -227,7 +277,7 @@ export function ChatPage() {
                 ) : (
                   <div className="min-w-0 pl-0 sm:pl-0.5">
                     <div className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-stone-400">Assistant</div>
-                    {m.thought ? (
+                    {showThinking && m.thought ? (
                       <details
                         className="mb-2 rounded-xl border border-stone-200/60 bg-stone-50/80 open:bg-stone-50/90"
                         open={!m.text}
@@ -252,7 +302,7 @@ export function ChatPage() {
             {pending ? (
               <div className="min-w-0 pl-0.5 sm:pl-0.5">
                 <div className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-stone-400">Assistant</div>
-                {pending.thought ? (
+                {showThinking && pending.thought ? (
                   <details open className="mb-2 rounded-xl border border-amber-200/40 bg-amber-50/30">
                     <summary className="cursor-pointer select-none px-3 py-2 text-xs font-medium text-amber-900/80">
                       Thinking
@@ -267,7 +317,7 @@ export function ChatPage() {
                     <ChatMarkdown>{pending.text}</ChatMarkdown>
                   </div>
                 ) : null}
-                {busy && !pending.text && !pending.thought ? (
+                {busy && !pending.text && (!pending.thought || !showThinking) ? (
                   <p className="text-sm text-stone-500">…</p>
                 ) : null}
               </div>
