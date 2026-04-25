@@ -162,28 +162,28 @@ export function FatiguePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display text-2xl font-bold text-white">Fatigue detection (ML)</h1>
-        <p className="mt-1 max-w-3xl text-sm text-slate-400">
-          Only <span className="text-slate-300">LightGBM + Optuna</span>: next-day smoothed CTR from the prior 7
+        <h1 className="font-display text-2xl font-bold tracking-tight text-brand">Fatigue detection (ML)</h1>
+        <p className="mt-1 max-w-3xl text-sm text-stone-600">
+          Only <span className="font-medium text-stone-800">LightGBM + Optuna</span>: next-day smoothed CTR from the prior 7
           calendar days of delivery (rolled up globally per creative per day) plus static fields from{' '}
-          <code className="text-accent">creatives</code>. Train in the browser (SSE), then compare actual vs predicted CTR
-          over <code className="text-slate-500">days_since_launch</code> — divergence suggests drift / fatigue relative to
+          <code className="rounded bg-brand-50 px-1.5 py-0.5 text-xs font-medium text-brand">creatives</code>. Train in the browser (SSE), then compare actual vs predicted CTR
+          over <code className="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-700">days_since_launch</code> — divergence suggests drift / fatigue relative to
           what the model learned.
         </p>
       </div>
 
-      <section className="rounded-2xl border border-slate-800 bg-slate-900/30 p-4">
+      <section className="surface-panel">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h2 className="font-display text-lg font-semibold text-white">CTR model training</h2>
-            <p className="mt-1 max-w-2xl text-xs text-slate-500">
+            <h2 className="font-display text-lg font-semibold text-brand">CTR model training</h2>
+            <p className="mt-1 max-w-2xl text-xs text-stone-600">
               Optuna minimizes mean CV RMSE. Holdout creatives for final test RMSE / MAE / R². Trials: 1–100 · CV splits:
               1–10.
             </p>
           </div>
           <div className="flex flex-wrap items-end gap-3">
             <div>
-              <div className="mb-1 text-xs font-medium uppercase text-slate-500">Optuna trials (1–100)</div>
+              <div className="mb-1 text-xs font-semibold uppercase text-stone-500">Optuna trials (1–100)</div>
               <input
                 inputMode="numeric"
                 className="input w-24"
@@ -197,7 +197,7 @@ export function FatiguePage() {
               />
             </div>
             <div>
-              <div className="mb-1 text-xs font-medium uppercase text-slate-500">CV splits (1–10)</div>
+              <div className="mb-1 text-xs font-semibold uppercase text-stone-500">CV splits (1–10)</div>
               <input
                 inputMode="numeric"
                 className="input w-20"
@@ -222,24 +222,24 @@ export function FatiguePage() {
         </div>
 
         {mlStatus?.trained ? (
-          <p className="mt-3 text-xs text-emerald-400/90">
+          <p className="mt-3 text-xs font-medium text-emerald-800">
             Model loaded — test RMSE {mlStatus.test_metrics?.rmse?.toFixed(5) ?? '-'}, MAE{' '}
             {mlStatus.test_metrics?.mae?.toFixed(5) ?? '-'}, R² {mlStatus.test_metrics?.r2?.toFixed(3) ?? '-'} ·{' '}
             {mlStatus.n_features ?? 0} features
           </p>
         ) : (
-          <p className="mt-3 text-xs text-slate-500">Train once to enable CTR curves and recommendation health scores.</p>
+          <p className="mt-3 text-xs text-stone-600">Train once to enable CTR curves and recommendation health scores.</p>
         )}
 
         {splitInfo ? (
-          <p className="mt-2 font-mono text-[11px] text-slate-400">
+          <p className="mt-2 font-mono text-[11px] text-stone-600">
             split: train_val_rows={String(splitInfo.n_train_val_rows)} test_rows={String(splitInfo.n_test_rows)}{' '}
             creatives_test={String(splitInfo.n_test_creatives)}
           </p>
         ) : null}
 
         {streamLog.length > 0 ? (
-          <div className="mt-3 max-h-28 overflow-y-auto rounded-lg border border-slate-800 bg-ink-950/80 p-2 font-mono text-[11px] text-slate-300">
+          <div className="mt-3 max-h-28 overflow-y-auto rounded-xl border border-stone-200 bg-stone-50 p-2 font-mono text-[11px] text-stone-700">
             {streamLog.map((line, i) => (
               <div key={i}>{line}</div>
             ))}
@@ -247,9 +247,9 @@ export function FatiguePage() {
         ) : null}
 
         {optunaTrials.length > 0 ? (
-          <div className="mt-4 max-h-56 overflow-auto rounded-lg border border-slate-800">
-            <table className="w-full text-left text-[11px] text-slate-300">
-              <thead className="sticky top-0 bg-slate-900/95 text-slate-500">
+          <div className="mt-4 max-h-56 overflow-auto rounded-xl border border-stone-200">
+            <table className="w-full text-left text-[11px] text-stone-700">
+              <thead className="sticky top-0 bg-stone-50 text-stone-500">
                 <tr>
                   <th className="p-2">Trial</th>
                   <th className="p-2">CV RMSE</th>
@@ -265,10 +265,10 @@ export function FatiguePage() {
                   const p = tr.params as Record<string, number> | undefined
                   const folds = tr.folds as Array<{ fold: number; rmse: number }> | undefined
                   return (
-                    <tr key={idx} className="border-t border-slate-800/80">
+                    <tr key={idx} className="border-t border-stone-100">
                       <td className="p-2">{String(tr.trial)}</td>
                       <td className="p-2">{typeof tr.value === 'number' ? tr.value.toFixed(6) : '-'}</td>
-                      <td className="p-2 text-accent">
+                      <td className="p-2 font-medium text-brand">
                         {typeof tr.best_value === 'number' ? tr.best_value.toFixed(6) : '-'}
                       </td>
                       <td className="p-2">{p?.n_estimators ?? '-'}</td>
@@ -278,7 +278,7 @@ export function FatiguePage() {
                           : '-'}
                       </td>
                       <td className="p-2">{p?.learning_rate != null ? p.learning_rate.toFixed(3) : '-'}</td>
-                      <td className="p-2 font-mono text-[10px] text-slate-500">
+                      <td className="p-2 font-mono text-[10px] text-stone-500">
                         {folds?.map((f) => `${f.fold}:${f.rmse.toFixed(4)}`).join(' · ') ?? '-'}
                       </td>
                     </tr>
@@ -290,18 +290,18 @@ export function FatiguePage() {
         ) : null}
 
         {testMetrics ? (
-          <p className="mt-3 text-sm text-slate-300">
-            Holdout test: RMSE <span className="text-accent">{Number(testMetrics.rmse).toFixed(6)}</span>, MAE{' '}
-            <span className="text-accent">{Number(testMetrics.mae).toFixed(6)}</span>, R²{' '}
-            <span className="text-accent">{Number(testMetrics.r2).toFixed(4)}</span> (n=
+          <p className="mt-3 text-sm text-stone-700">
+            Holdout test: RMSE <span className="font-semibold text-brand">{Number(testMetrics.rmse).toFixed(6)}</span>, MAE{' '}
+            <span className="font-semibold text-brand">{Number(testMetrics.mae).toFixed(6)}</span>, R²{' '}
+            <span className="font-semibold text-brand">{Number(testMetrics.r2).toFixed(4)}</span> (n=
             {String(testMetrics.n_test_rows)})
           </p>
         ) : null}
       </section>
 
-      <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-800 bg-slate-900/30 p-4">
+      <div className="flex flex-wrap items-end gap-3 surface-panel !py-4">
         <div className="min-w-[12rem] flex-1">
-          <div className="mb-1 text-xs font-medium uppercase text-slate-500">Creative ID</div>
+          <div className="mb-1 text-xs font-semibold uppercase text-stone-500">Creative ID</div>
           <input
             className="input w-full max-w-xs font-mono"
             list="fatigue-creative-ids"
@@ -322,43 +322,52 @@ export function FatiguePage() {
           Load chart
         </button>
       </div>
-      {err ? <p className="text-sm text-red-400">{err}</p> : null}
+      {err ? <p className="text-sm text-red-600">{err}</p> : null}
 
-      <div className="rounded-2xl border border-slate-800 bg-slate-900/30 p-4">
+      <div className="surface-panel">
         {selected == null ? (
-          <p className="text-sm text-slate-500">Enter a creative ID and load the chart.</p>
+          <p className="text-sm text-stone-600">Enter a creative ID and load the chart.</p>
         ) : !mlStatus?.trained ? (
-          <p className="text-sm text-slate-500">
-            Creative <span className="font-mono text-accent">{selected}</span> — train the model above to see actual vs
+          <p className="text-sm text-stone-600">
+            Creative <span className="font-mono font-medium text-brand">{selected}</span> — train the model above to see actual vs
             predicted CTR.
           </p>
         ) : mlSeries.length === 0 ? (
-          <p className="text-sm text-slate-500">
-            No ML points for creative <span className="font-mono text-accent">{selected}</span> (needs enough history
+          <p className="text-sm text-stone-600">
+            No ML points for creative <span className="font-mono font-medium text-brand">{selected}</span> (needs enough history
             after global daily rollup).
           </p>
         ) : (
           <>
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="font-display text-lg font-semibold text-white">Creative {selected}</h2>
-              <span className="text-xs text-slate-500">x = days since launch · teacher-forcing on prior 7 days</span>
+              <h2 className="font-display text-lg font-semibold text-brand">Creative {selected}</h2>
+              <span className="text-xs text-stone-500">x = days since launch · teacher-forcing on prior 7 days</span>
             </div>
-            <p className="mt-1 text-xs text-slate-500">
+            <p className="mt-1 text-xs text-stone-600">
               Smoothed CTR target vs model output per day. Wider gaps → harder to predict (often fatigue or mix shifts).
             </p>
             <div className="mt-4 h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={mlSeries}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                  <XAxis dataKey="days_since_launch" tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                  <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} domain={['auto', 'auto']} />
-                  <Tooltip contentStyle={{ background: '#111827', border: '1px solid #334155' }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
+                  <XAxis dataKey="days_since_launch" tick={{ fill: '#78716c', fontSize: 11 }} />
+                  <YAxis tick={{ fill: '#78716c', fontSize: 11 }} domain={['auto', 'auto']} />
+                  <Tooltip
+                    contentStyle={{
+                      background: '#ffffff',
+                      border: '1px solid #e7e5e4',
+                      borderRadius: '12px',
+                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.07)',
+                    }}
+                    labelStyle={{ color: '#44403c', fontWeight: 600 }}
+                    itemStyle={{ color: '#57534e' }}
+                  />
                   <Legend />
                   <Line
                     type="monotone"
                     dataKey="actual_ctr"
                     name="Actual CTR (smoothed)"
-                    stroke="#f472b6"
+                    stroke="#7c3aad"
                     dot={false}
                     strokeWidth={2}
                   />
@@ -366,7 +375,7 @@ export function FatiguePage() {
                     type="monotone"
                     dataKey="predicted_ctr"
                     name="Predicted CTR"
-                    stroke="#34d399"
+                    stroke="#0d9488"
                     dot={false}
                     strokeWidth={2}
                   />

@@ -34,10 +34,10 @@ function fmtPct(n: number | null | undefined) {
 }
 
 const TS_RIGHT_METRICS = [
-  { key: 'spend_usd', label: 'Spend (USD)', stroke: '#a78bfa', fmt: (v: number) => fmt(v, 0) },
-  { key: 'conversions', label: 'Conversions', stroke: '#fbbf24', fmt: (v: number) => fmt(v, 0) },
-  { key: 'revenue_usd', label: 'Revenue (USD)', stroke: '#34d399', fmt: (v: number) => fmt(v, 0) },
-  { key: 'ipm', label: 'IPM', stroke: '#fb923c', fmt: (v: number) => fmt(v, 2) },
+  { key: 'spend_usd', label: 'Spend (USD)', stroke: '#5e2d87', fmt: (v: number) => fmt(v, 0) },
+  { key: 'conversions', label: 'Conversions', stroke: '#b45309', fmt: (v: number) => fmt(v, 0) },
+  { key: 'revenue_usd', label: 'Revenue (USD)', stroke: '#047857', fmt: (v: number) => fmt(v, 0) },
+  { key: 'ipm', label: 'IPM', stroke: '#0d9488', fmt: (v: number) => fmt(v, 2) },
 ] as const
 
 type TsRightKey = (typeof TS_RIGHT_METRICS)[number]['key']
@@ -135,14 +135,14 @@ function SortTh({
   const arrow = !active ? '' : current.dir === 'asc' ? ' ↑' : ' ↓'
   return (
     <th
-      className={`py-2 font-medium ${align === 'right' ? 'pr-2' : 'pr-3'} text-slate-500`}
+      className={`py-2 font-medium ${align === 'right' ? 'pr-2' : 'pr-3'} text-stone-500`}
       aria-sort={active ? (current.dir === 'asc' ? 'ascending' : 'descending') : undefined}
     >
       <div className={align === 'right' ? 'flex justify-end' : ''}>
         <button
           type="button"
           onClick={() => onPick(sortKey)}
-          className={`inline-flex max-w-full items-center gap-0.5 rounded px-0.5 hover:text-slate-300 focus-visible:outline focus-visible:ring-1 focus-visible:ring-accent ${align === 'right' ? 'text-right' : 'text-left'} ${active ? 'text-accent' : ''}`}
+          className={`inline-flex max-w-full items-center gap-0.5 rounded px-0.5 hover:text-brand focus-visible:outline focus-visible:ring-2 focus-visible:ring-brand/25 ${align === 'right' ? 'text-right' : 'text-left'} ${active ? 'text-brand' : ''}`}
         >
           <span className="tabular-nums">
             {label}
@@ -172,16 +172,16 @@ function TopEntityTable({ title, rows }: { title: string; rows: PerformanceEntit
 
   if (rows.length < 2) return null
   return (
-    <div className="min-w-0 rounded-xl border border-slate-800 bg-slate-900/40 p-4">
-      <h3 className="font-display text-sm font-semibold text-white">{title}</h3>
-      <p className="mt-0.5 text-xs text-slate-500">
+    <div className="surface-panel min-w-0">
+      <h3 className="font-display text-sm font-semibold text-brand">{title}</h3>
+      <p className="mt-0.5 text-xs text-stone-600">
         Same date range and filters as the summary. Click a column to sort; CPA and name default low→high / A→Z.
       </p>
       <div className="mt-3 overflow-x-auto">
         <table className="w-full min-w-[40rem] border-collapse text-left text-xs">
           <thead>
-            <tr className="border-b border-slate-800">
-              <th className="py-2 pr-2 font-medium text-slate-500">#</th>
+            <tr className="border-b border-stone-200">
+              <th className="py-2 pr-2 font-medium text-stone-500">#</th>
               <SortTh label="Name" sortKey="name" align="left" current={sort} onPick={onPick} />
               <SortTh label="Spend" sortKey="spend_usd" align="right" current={sort} onPick={onPick} />
               <SortTh label="Impr." sortKey="impressions" align="right" current={sort} onPick={onPick} />
@@ -195,10 +195,10 @@ function TopEntityTable({ title, rows }: { title: string; rows: PerformanceEntit
               <SortTh label="IPM" sortKey="ipm" align="right" current={sort} onPick={onPick} />
             </tr>
           </thead>
-          <tbody className="text-slate-300">
+          <tbody className="text-stone-700">
             {sorted.map((r, i) => (
-              <tr key={entityRowId(r)} className="border-b border-slate-800/60 last:border-0">
-                <td className="py-2 pr-2 text-slate-500">{i + 1}</td>
+              <tr key={entityRowId(r)} className="border-b border-stone-100 last:border-0">
+                <td className="py-2 pr-2 text-stone-500">{i + 1}</td>
                 <td className="max-w-[12rem] truncate py-2 pr-3" title={r.label}>
                   {r.label}
                 </td>
@@ -386,16 +386,16 @@ export function PerformancePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display text-2xl font-bold text-white">Performance explorer</h1>
-        <p className="mt-1 text-sm text-slate-400">
-          Metrics from <code className="text-accent">creative_daily_country_os_stats</code> with joins; filters slice the same fact rows.
+        <h1 className="font-display text-2xl font-bold tracking-tight text-brand">Performance explorer</h1>
+        <p className="mt-1 text-sm text-stone-600">
+          Metrics from <code className="rounded bg-brand-50 px-1.5 py-0.5 text-xs font-medium text-brand">creative_daily_country_os_stats</code> with joins; filters slice the same fact rows.
         </p>
       </div>
 
-      <section className="rounded-2xl border border-slate-800 bg-slate-900/30 p-4 sm:p-5">
+      <section className="surface-panel">
         <div className="mb-4 flex min-w-0 flex-wrap items-end gap-3">
           <label className="flex min-w-0 max-w-xs flex-1 flex-col gap-1 basis-[10rem]">
-            <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">From</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-stone-500">From</span>
             <input
               type="date"
               className="input w-full min-w-0 py-1.5 text-sm"
@@ -406,7 +406,7 @@ export function PerformancePage() {
             />
           </label>
           <label className="flex min-w-0 max-w-xs flex-1 flex-col gap-1 basis-[10rem]">
-            <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">To</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-stone-500">To</span>
             <input
               type="date"
               className="input w-full min-w-0 py-1.5 text-sm"
@@ -419,7 +419,7 @@ export function PerformancePage() {
         </div>
 
         <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-3">
-          <div className="min-w-0 rounded-lg border border-slate-800/70 bg-slate-950/25 p-3">
+          <div className="surface-inset min-w-0">
               <MultiSelect
                 label={entityChipKeys[0].label}
                 options={optionsForChip(opts, entityChipKeys[0].optKey, entityChipKeys[0].labeledKey)}
@@ -430,7 +430,7 @@ export function PerformancePage() {
                 maxChipRows={3}
               />
           </div>
-          <div className="min-w-0 rounded-lg border border-slate-800/70 bg-slate-950/25 p-3">
+          <div className="surface-inset min-w-0">
               <MultiSelect
                 label={entityChipKeys[1].label}
                 options={optionsForChip(opts, entityChipKeys[1].optKey, entityChipKeys[1].labeledKey)}
@@ -441,7 +441,7 @@ export function PerformancePage() {
                 maxChipRows={3}
               />
           </div>
-          <div className="min-w-0 rounded-lg border border-slate-800/70 bg-slate-950/25 p-3">
+          <div className="surface-inset min-w-0">
               <MultiSelect
                 label={entityChipKeys[2].label}
                 options={optionsForChip(opts, entityChipKeys[2].optKey, entityChipKeys[2].labeledKey)}
@@ -453,8 +453,8 @@ export function PerformancePage() {
               />
           </div>
         </div>
-        <details className="mt-5 rounded-lg border border-slate-800 bg-ink-950/50 p-3">
-          <summary className="cursor-pointer select-none text-sm font-medium text-slate-300">More filters</summary>
+        <details className="mt-5 rounded-xl border border-stone-200 bg-stone-50/60 p-3">
+          <summary className="cursor-pointer select-none text-sm font-medium text-stone-800">More filters</summary>
           <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {moreChipKeys.map(({ key, label, optKey, labeledKey }) => (
               <MultiSelect
@@ -466,17 +466,17 @@ export function PerformancePage() {
               />
             ))}
           </div>
-          <div className="mt-4 border-t border-slate-800 pt-3">
-            <div className="mb-2 text-xs font-medium uppercase tracking-wide text-slate-500">Numeric ranges</div>
+          <div className="mt-4 border-t border-stone-200 pt-3">
+            <div className="mb-2 text-xs font-medium uppercase tracking-wide text-stone-500">Numeric ranges</div>
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {numericKeys.map(([key, label]) => {
                 const range = numericRanges[key]
                 return (
                   <div key={key}>
-                    <div className="mb-1 text-xs text-slate-500">
+                    <div className="mb-1 text-xs text-stone-600">
                       {label}
                       {range ? (
-                        <span className="ml-1 text-slate-600">
+                        <span className="ml-1 text-stone-500">
                           ({fmt(range.min ?? undefined)}-{fmt(range.max ?? undefined)})
                         </span>
                       ) : null}
@@ -505,7 +505,7 @@ export function PerformancePage() {
             </div>
           </div>
         </details>
-        {err ? <p className="mt-4 text-sm text-red-400">{err}</p> : null}
+        {err ? <p className="mt-4 text-sm text-red-600">{err}</p> : null}
       </section>
 
       {summary ? (
@@ -547,17 +547,17 @@ export function PerformancePage() {
             </div>
           ) : null}
 
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/30 p-4">
+          <div className="surface-panel !p-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <h3 className="font-display text-sm font-semibold text-white">Performance over time</h3>
-                <p className="mt-0.5 text-xs text-slate-500">
+                <h3 className="font-display text-sm font-semibold text-brand">Performance over time</h3>
+                <p className="mt-0.5 text-xs text-stone-600">
                   CTR (left) vs a volume or efficiency series (right). Switch the right axis to align with what you are
                   investigating.
                 </p>
               </div>
-              <label className="flex flex-col gap-1 text-xs text-slate-500 sm:min-w-[11rem]">
-                <span className="font-medium uppercase tracking-wide">Right axis</span>
+              <label className="flex flex-col gap-1 text-xs text-stone-600 sm:min-w-[11rem]">
+                <span className="font-medium uppercase tracking-wide text-stone-500">Right axis</span>
                 <select
                   className="input py-1.5 text-sm"
                   value={tsRightAxis}
@@ -574,17 +574,24 @@ export function PerformancePage() {
             <div className="mt-3 h-64 sm:h-72">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={ts}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                  <XAxis dataKey="date" tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
+                  <XAxis dataKey="date" tick={{ fill: '#78716c', fontSize: 11 }} />
                   <YAxis
                     yAxisId="l"
-                    tick={{ fill: '#94a3b8', fontSize: 11 }}
+                    tick={{ fill: '#78716c', fontSize: 11 }}
                     tickFormatter={(v) => `${(Number(v) * 100).toFixed(2)}%`}
-                    label={{ value: 'CTR', angle: -90, position: 'insideLeft', fill: '#64748b', fontSize: 10 }}
+                    label={{ value: 'CTR', angle: -90, position: 'insideLeft', fill: '#a8a29e', fontSize: 10 }}
                   />
-                  <YAxis yAxisId="r" orientation="right" tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                  <YAxis yAxisId="r" orientation="right" tick={{ fill: '#78716c', fontSize: 11 }} />
                   <Tooltip
-                    contentStyle={{ background: '#111827', border: '1px solid #334155' }}
+                    contentStyle={{
+                      background: '#ffffff',
+                      border: '1px solid #e7e5e4',
+                      borderRadius: '12px',
+                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.07)',
+                    }}
+                    labelStyle={{ color: '#44403c', fontWeight: 600 }}
+                    itemStyle={{ color: '#57534e' }}
                     formatter={(value, name) => {
                       const label = String(name)
                       if (value === undefined || value === null) return ['-', label]
@@ -597,7 +604,7 @@ export function PerformancePage() {
                     }}
                   />
                   <Legend />
-                  <Line yAxisId="l" type="monotone" dataKey="ctr" name="CTR" stroke="#22d3ee" dot={false} strokeWidth={2} />
+                  <Line yAxisId="l" type="monotone" dataKey="ctr" name="CTR" stroke="#7c3aad" dot={false} strokeWidth={2} />
                   <Line
                     yAxisId="r"
                     type="monotone"

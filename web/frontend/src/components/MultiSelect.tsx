@@ -63,18 +63,18 @@ export function MultiSelect({
   /** Chips wrap like tags: width follows text up to row width, then label wraps inside the pill. */
   const chipWrapClass = 'flex flex-wrap content-start items-start gap-1.5'
   const chipClass =
-    'max-w-full min-w-0 w-max rounded-md px-2 py-1.5 text-left text-xs font-medium transition whitespace-normal break-words text-balance'
+    'max-w-full min-w-0 w-max rounded-lg px-2 py-1.5 text-left text-xs font-medium transition whitespace-normal break-words text-balance'
 
   const scrollBoxClass =
     maxChipRows === 3
-      ? 'max-h-[7.5rem] min-h-0 overflow-y-auto overscroll-contain rounded-lg border border-slate-700 bg-ink-900 p-2 text-sm sm:max-h-[8rem]'
+      ? 'max-h-[7.5rem] min-h-0 overflow-y-auto overscroll-contain rounded-xl border border-stone-200 bg-white p-2 text-sm sm:max-h-[8rem]'
       : searchable
-        ? 'max-h-40 min-h-0 overflow-y-auto overscroll-contain rounded-lg border border-slate-700 bg-ink-900 p-2 text-sm sm:max-h-44'
-        : 'max-h-32 min-h-0 overflow-y-auto overscroll-contain rounded-lg border border-slate-700 bg-ink-900 p-2 text-sm sm:max-h-36'
+        ? 'max-h-40 min-h-0 overflow-y-auto overscroll-contain rounded-xl border border-stone-200 bg-white p-2 text-sm sm:max-h-44'
+        : 'max-h-32 min-h-0 overflow-y-auto overscroll-contain rounded-xl border border-stone-200 bg-white p-2 text-sm sm:max-h-36'
 
   return (
     <div className={['min-h-0 min-w-0', className].filter(Boolean).join(' ')}>
-      <div className="mb-1 text-xs font-medium uppercase tracking-wide text-slate-500">{label}</div>
+      <div className="mb-1 text-xs font-semibold uppercase tracking-wide text-stone-500">{label}</div>
       {searchable ? (
         <input
           type="search"
@@ -87,9 +87,9 @@ export function MultiSelect({
       ) : null}
       <div className={scrollBoxClass}>
         {options.length === 0 ? (
-          <p className="text-slate-500">No values</p>
+          <p className="text-stone-500">No values</p>
         ) : visibleOptions.length === 0 ? (
-          <p className="text-slate-500">No matches</p>
+          <p className="text-stone-500">No matches</p>
         ) : (
           <div className={chipWrapClass}>
             {visibleOptions.map((o) => {
@@ -104,8 +104,8 @@ export function MultiSelect({
                   onClick={() => toggle(o)}
                   className={`${chipClass} ${
                     active
-                      ? 'bg-accent/20 text-accent ring-1 ring-accent/40'
-                      : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700'
+                      ? 'bg-brand-50 text-brand ring-1 ring-brand/30'
+                      : 'bg-stone-100 text-stone-700 hover:bg-stone-200'
                   }`}
                 >
                   {lbl}
