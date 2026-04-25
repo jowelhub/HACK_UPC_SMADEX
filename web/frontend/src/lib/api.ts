@@ -42,6 +42,31 @@ export async function fetchFatigueCurve(creativeId: number) {
   return r.json() as Promise<{ creative_id: number; series: FatiguePoint[] }>
 }
 
+export type FatigueMLStatus = {
+  trained: boolean
+  best_params?: Record<string, unknown>
+  test_metrics?: { rmse: number; mae: number; r2: number }
+  n_features?: number
+}
+
+export async function fetchFatigueMLStatus(): Promise<FatigueMLStatus> {
+  const r = await fetch('/api/fatigue/ml/status')
+  if (!r.ok) throw new Error(await r.text())
+  return r.json() as Promise<FatigueMLStatus>
+}
+
+export type MLCurvePoint = {
+  days_since_launch: number
+  actual_ctr: number
+  predicted_ctr: number
+}
+
+export async function fetchFatigueMLPredictCurve(creativeId: number) {
+  const r = await fetch(`/api/fatigue/ml/predict-curve/${creativeId}`)
+  if (!r.ok) throw new Error(await r.text())
+  return r.json() as Promise<{ creative_id: number; trained: boolean; series: MLCurvePoint[] }>
+}
+
 export async function fetchRecommendations(filters: PerformanceFilters) {
   return post<{ items: RecommendationRow[] }>('/api/recommendations/list', { filters })
 }
