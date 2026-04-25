@@ -77,10 +77,11 @@ def _compute_creative_curve(daily_c: pd.DataFrame) -> pd.DataFrame:
 
 
 class FatigueService:
+    """Signals from `creative_daily` facts only (aggregated + rolling). No `creative_summary` join."""
+
     def __init__(self, store: DataStore) -> None:
-        self._daily = store.daily_enriched[["date", "campaign_id", "creative_id", "spend_usd", "impressions", "clicks", "conversions", "revenue_usd", "days_since_launch"]].copy()
-        self._summary = store.creative_summary[
-            ["creative_id", "creative_status", "fatigue_day", "ctr_decay_pct", "cvr_decay_pct"]
+        self._daily = store.daily_enriched[
+            ["date", "campaign_id", "creative_id", "spend_usd", "impressions", "clicks", "conversions", "revenue_usd", "days_since_launch"]
         ].copy()
         self._curves: dict[int, pd.DataFrame] = {}
         self._latest: pd.DataFrame | None = None
@@ -110,9 +111,7 @@ class FatigueService:
                     "max_days_since_launch": int(curve["days_since_launch"].max()),
                 }
             )
-        latest = pd.DataFrame(latest_rows)
-        latest = latest.merge(self._summary, on="creative_id", how="left")
-        self._latest = latest
+        self._latest = pd.DataFrame(latest_rows)
         self._curves = curves
 
     def summary(self, filters: dict[str, Any] | None = None) -> list[dict[str, Any]]:
@@ -123,11 +122,13 @@ class FatigueService:
                 out = out[out["campaign_id"].isin(filters["campaign_ids"])]
             if filters.get("creative_ids"):
                 out = out[out["creative_id"].isin(filters["creative_ids"])]
-            if filters.get("creative_status"):
-                out = out[out["creative_status"].isin(filters["creative_status"])]
             if filters.get("health_max") is not None:
                 out = out[out["health_score"] <= float(filters["health_max"])]
         return out.sort_values("health_score", ascending=True).to_dict(orient="records")
+
+    def list_creative_ids(self) -> list[int]:
+        """Distinct creatives present in daily facts (same grain as curves / ML)."""
+        return sorted(int(x) for x in self._daily["creative_id"].unique())
 
     def curve(self, creative_id: int) -> list[dict[str, Any]]:
         if creative_id not in self._curves:

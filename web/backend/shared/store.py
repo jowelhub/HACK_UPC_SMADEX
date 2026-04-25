@@ -90,7 +90,6 @@ class DataStore:
         campaigns = pd.read_sql_table("campaigns", con=engine)
         creatives = pd.read_sql_table("creatives", con=engine)
         daily = pd.read_sql_table("creative_daily_country_os_stats", con=engine)
-        creative_summary = pd.read_sql_table("creative_summary", con=engine)
 
         daily["date"] = pd.to_datetime(daily["date"])
         campaigns["start_date"] = pd.to_datetime(campaigns["start_date"])
@@ -100,7 +99,6 @@ class DataStore:
         self.campaigns = campaigns
         self.creatives = creatives
         self.daily_enriched = _build_daily_enriched(daily, campaigns, creatives, advertisers)
-        self.creative_summary = creative_summary
 
 
 @lru_cache(maxsize=1)

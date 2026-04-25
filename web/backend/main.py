@@ -99,6 +99,12 @@ def fatigue_curve(creative_id: int, request: Request) -> dict[str, Any]:
     return {"creative_id": creative_id, "series": svc.curve(creative_id)}
 
 
+@app.get("/api/fatigue/creative-ids")
+def fatigue_creative_ids(request: Request) -> dict[str, Any]:
+    svc: FatigueService = request.app.state.fatigue
+    return {"creative_ids": svc.list_creative_ids()}
+
+
 @app.get("/api/fatigue/ml/status")
 def fatigue_ml_status(request: Request) -> dict[str, Any]:
     art = getattr(request.app.state, "fatigue_ctr_ml", None)

@@ -1,6 +1,9 @@
 -- Smadex synthetic dataset schema (PostgreSQL 16+)
 -- Applied by the API container on first boot if tables are missing.
 -- Seeded from CSV under IMPORT_DATA_DIR (Docker: /import -> repo data_science/data).
+--
+-- Tables: advertisers → campaigns → creatives → creative_daily_country_os_stats
+-- (no creative_summary: creative-level KPIs are computed in the API from the daily fact table.)
 
 CREATE TABLE IF NOT EXISTS advertisers (
     advertiser_id INTEGER PRIMARY KEY,
@@ -77,68 +80,6 @@ CREATE TABLE IF NOT EXISTS creative_daily_country_os_stats (
     revenue_usd DOUBLE PRECISION,
     video_completions BIGINT,
     PRIMARY KEY ("date", creative_id, country, os)
-);
-
-CREATE TABLE IF NOT EXISTS creative_summary (
-    creative_id INTEGER PRIMARY KEY REFERENCES creatives (creative_id),
-    campaign_id INTEGER NOT NULL REFERENCES campaigns (campaign_id),
-    advertiser_name TEXT,
-    app_name TEXT,
-    vertical TEXT,
-    format TEXT,
-    creative_status TEXT,
-    fatigue_day INTEGER,
-    total_days_active INTEGER,
-    total_spend_usd DOUBLE PRECISION,
-    total_impressions BIGINT,
-    total_clicks BIGINT,
-    total_conversions BIGINT,
-    total_revenue_usd DOUBLE PRECISION,
-    overall_ctr DOUBLE PRECISION,
-    overall_cvr DOUBLE PRECISION,
-    overall_ipm DOUBLE PRECISION,
-    overall_roas DOUBLE PRECISION,
-    first_7d_ctr DOUBLE PRECISION,
-    last_7d_ctr DOUBLE PRECISION,
-    ctr_decay_pct DOUBLE PRECISION,
-    first_7d_cvr DOUBLE PRECISION,
-    last_7d_cvr DOUBLE PRECISION,
-    cvr_decay_pct DOUBLE PRECISION,
-    peak_rolling_ctr_5 DOUBLE PRECISION,
-    width INTEGER,
-    height INTEGER,
-    language TEXT,
-    creative_launch_date DATE,
-    theme TEXT,
-    hook_type TEXT,
-    cta_text TEXT,
-    headline TEXT,
-    subhead TEXT,
-    dominant_color TEXT,
-    emotional_tone TEXT,
-    duration_sec INTEGER,
-    text_density DOUBLE PRECISION,
-    copy_length_chars INTEGER,
-    readability_score DOUBLE PRECISION,
-    brand_visibility_score DOUBLE PRECISION,
-    clutter_score DOUBLE PRECISION,
-    novelty_score DOUBLE PRECISION,
-    motion_score DOUBLE PRECISION,
-    faces_count INTEGER,
-    product_count INTEGER,
-    has_price INTEGER,
-    has_discount_badge INTEGER,
-    has_gameplay INTEGER,
-    has_ugc_style INTEGER,
-    asset_file TEXT,
-    peak_day_impressions BIGINT,
-    first_7d_impressions BIGINT,
-    first_7d_clicks BIGINT,
-    first_7d_conversions BIGINT,
-    last_7d_impressions BIGINT,
-    last_7d_clicks BIGINT,
-    last_7d_conversions BIGINT,
-    perf_score DOUBLE PRECISION
 );
 
 CREATE INDEX IF NOT EXISTS idx_daily_creative_date ON creative_daily_country_os_stats (creative_id, "date");

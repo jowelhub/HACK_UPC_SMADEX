@@ -51,9 +51,16 @@ def _daily_count(conn) -> int:
     return int(conn.execute(text("SELECT COUNT(*) FROM creative_daily_country_os_stats")).scalar_one())
 
 
+def _drop_legacy_creative_summary(engine) -> None:
+    with engine.begin() as conn:
+        if _table_exists(conn, "creative_summary"):
+            conn.execute(text("DROP TABLE IF EXISTS creative_summary CASCADE"))
+            print("[ensure_db_seeded] dropped legacy table creative_summary", flush=True)
+
+
 def _truncate_all(engine) -> None:
     stmt = text(
-        "TRUNCATE TABLE creative_daily_country_os_stats, creative_summary, creatives, "
+        "TRUNCATE TABLE creative_daily_country_os_stats, creatives, "
         "campaigns, advertisers RESTART IDENTITY CASCADE"
     )
     with engine.begin() as conn:
@@ -66,7 +73,6 @@ def _load_csv_tables(engine, data_dir: Path) -> None:
         ("campaigns", "campaigns.csv"),
         ("creatives", "creatives.csv"),
         ("creative_daily_country_os_stats", "creative_daily_country_os_stats.csv"),
-        ("creative_summary", "creative_summary.csv"),
     ]
     for table, fname in load_order:
         path = data_dir / fname
@@ -102,6 +108,7 @@ def run() -> None:
         raise SystemExit(1)
 
     engine = create_engine(url, pool_pre_ping=True)
+    _drop_legacy_creative_summary(engine)
 
     with engine.connect() as conn:
         need_schema = not _table_exists(conn, "advertisers") or not _table_exists(

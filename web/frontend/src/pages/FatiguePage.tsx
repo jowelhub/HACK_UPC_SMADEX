@@ -11,22 +11,14 @@ import {
   YAxis,
 } from 'recharts'
 import {
+  fetchFatigueCreativeIds,
   fetchFatigueCurve,
   fetchFatigueMLPredictCurve,
   fetchFatigueMLStatus,
-  fetchFatigueSummary,
   type FatigueMLStatus,
   type FatiguePoint,
-  type FatigueRow,
   type MLCurvePoint,
 } from '../lib/api'
-
-function healthColor(h: number | null | undefined) {
-  if (h === null || h === undefined) return 'bg-slate-600'
-  if (h >= 0.75) return 'bg-emerald-500'
-  if (h >= 0.5) return 'bg-amber-400'
-  return 'bg-rose-500'
-}
 
 type StreamEvent = Record<string, unknown>
 
@@ -43,10 +35,9 @@ function clampCvStr(raw: string, fallback: string): string {
 }
 
 export function FatiguePage() {
-  const [rows, setRows] = useState<FatigueRow[]>([])
-  const [statusFilter, setStatusFilter] = useState<string>('')
-  const [healthMax, setHealthMax] = useState<string>('')
+  const [creativeInput, setCreativeInput] = useState('')
   const [selected, setSelected] = useState<number | null>(null)
+  const [idOptions, setIdOptions] = useState<number[]>([])
   const [series, setSeries] = useState<FatiguePoint[]>([])
   const [mlSeries, setMlSeries] = useState<MLCurvePoint[]>([])
   const [err, setErr] = useState<string | null>(null)
@@ -57,19 +48,7 @@ export function FatiguePage() {
   const [nTrialsStr, setNTrialsStr] = useState('12')
   const [cvSplitsStr, setCvSplitsStr] = useState('5')
   const esRef = useRef<EventSource | null>(null)
-
-  const load = async () => {
-    setErr(null)
-    try {
-      const filters: Record<string, unknown> = {}
-      if (statusFilter) filters.creative_status = [statusFilter]
-      if (healthMax) filters.health_max = Number(healthMax)
-      const res = await fetchFatigueSummary(filters)
-      setRows(res.items)
-    } catch (e) {
-      setErr(String(e))
-    }
-  }
+  const seededCreativeRef = useRef(false)
 
   const refreshMlStatus = useCallback(async () => {
     try {
@@ -85,12 +64,19 @@ export function FatiguePage() {
   }, [refreshMlStatus])
 
   useEffect(() => {
-    const filters: Record<string, unknown> = {}
-    if (statusFilter) filters.creative_status = [statusFilter]
-    void fetchFatigueSummary(filters)
-      .then((res) => setRows(res.items))
+    if (seededCreativeRef.current) return
+    void fetchFatigueCreativeIds()
+      .then((ids) => {
+        setIdOptions(ids)
+        if (ids.length) {
+          seededCreativeRef.current = true
+          const first = ids[0]
+          setCreativeInput(String(first))
+          setSelected(first)
+        }
+      })
       .catch((e) => setErr(String(e)))
-  }, [statusFilter])
+  }, [])
 
   useEffect(() => {
     if (selected == null) {
@@ -135,6 +121,16 @@ export function FatiguePage() {
       }
     })
   }, [series, mlSeries])
+
+  const applyCreativeId = () => {
+    setErr(null)
+    const n = parseInt(creativeInput.trim(), 10)
+    if (Number.isNaN(n) || n <= 0) {
+      setErr('Enter a valid creative ID.')
+      return
+    }
+    setSelected(n)
+  }
 
   const startTrainStream = () => {
     setErr(null)
@@ -187,8 +183,6 @@ export function FatiguePage() {
     }
   }
 
-  const sorted = useMemo(() => rows, [rows])
-
   const optunaTrials = useMemo(
     () => streamEvents.filter((e) => e.type === 'optuna_trial') as Array<Record<string, unknown>>,
     [streamEvents],
@@ -207,10 +201,10 @@ export function FatiguePage() {
       <div>
         <h1 className="font-display text-2xl font-bold text-white">Fatigue detection</h1>
         <p className="mt-1 max-w-3xl text-sm text-slate-400">
-          <span className="text-slate-300">LightGBM + Optuna</span> on next-day smoothed CTR (prior 7 days of delivery +
-          creative metadata). CV is grouped by <code className="text-accent">creative_id</code> (GroupKFold, or a single
-          group holdout when CV splits = 1). Train from the browser over SSE; after training, overlay actual vs predicted CTR
-          for the selected creative.
+          All signals come from the <span className="text-slate-300">daily fact table</span> in Postgres, joined to{' '}
+          <code className="text-accent">creatives</code> and campaign fields. Charts use rolled-up daily totals and 7-day
+          windows. <span className="text-slate-300">LightGBM + Optuna</span> trains on the same grain (next-day smoothed
+          CTR from the prior 7 days + creative features).
         </p>
       </div>
 
@@ -342,81 +336,43 @@ export function FatiguePage() {
       </section>
 
       <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-slate-800 bg-slate-900/30 p-4">
-        <div>
-          <div className="mb-1 text-xs font-medium uppercase text-slate-500">Dataset status</div>
-          <select className="input" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)}>
-            <option value="">All</option>
-            <option value="top_performer">top_performer</option>
-            <option value="stable">stable</option>
-            <option value="fatigued">fatigued</option>
-            <option value="underperformer">underperformer</option>
-          </select>
-        </div>
-        <div>
-          <div className="mb-1 text-xs font-medium uppercase text-slate-500">Health ≤</div>
+        <div className="min-w-[12rem] flex-1">
+          <div className="mb-1 text-xs font-medium uppercase text-slate-500">Creative ID</div>
           <input
-            className="input w-28"
-            placeholder="e.g. 0.6"
-            value={healthMax}
-            onChange={(e) => setHealthMax(e.target.value)}
+            className="input w-full max-w-xs font-mono"
+            list="fatigue-creative-ids"
+            placeholder="e.g. 500696"
+            value={creativeInput}
+            onChange={(e) => setCreativeInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') applyCreativeId()
+            }}
           />
+          <datalist id="fatigue-creative-ids">
+            {idOptions.slice(0, 500).map((id) => (
+              <option key={id} value={id} />
+            ))}
+          </datalist>
         </div>
-        <button type="button" className="btn-primary" onClick={() => void load()}>
-          Apply filters
+        <button type="button" className="btn-primary" onClick={() => void applyCreativeId()}>
+          Load charts
         </button>
       </div>
       {err ? <p className="text-sm text-red-400">{err}</p> : null}
 
-      <div className="grid gap-4 lg:grid-cols-5">
-        <div className="lg:col-span-2">
-          <div className="max-h-[520px] overflow-y-auto rounded-2xl border border-slate-800 bg-slate-900/30">
-            <table className="w-full text-left text-xs sm:text-sm">
-              <thead className="sticky top-0 z-10 bg-ink-950/95 backdrop-blur">
-                <tr className="border-b border-slate-800 text-slate-500">
-                  <th className="p-2">Creative</th>
-                  <th className="p-2">Health</th>
-                  <th className="p-2">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {sorted.slice(0, 400).map((r) => (
-                  <tr
-                    key={r.creative_id}
-                    onClick={() => setSelected(r.creative_id)}
-                    className={`cursor-pointer border-b border-slate-800/60 hover:bg-slate-800/50 ${
-                      selected === r.creative_id ? 'bg-slate-800/70' : ''
-                    }`}
-                  >
-                    <td className="p-2 font-mono text-accent">{r.creative_id}</td>
-                    <td className="p-2">
-                      <div className="flex items-center gap-2">
-                        <span className={`h-2 w-8 rounded-full ${healthColor(r.health_score)}`} />
-                        <span className="text-slate-300">{r.health_score?.toFixed(2) ?? '-'}</span>
-                      </div>
-                    </td>
-                    <td className="p-2 text-slate-400">{r.creative_status ?? '-'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            {sorted.length > 400 ? (
-              <p className="border-t border-slate-800 p-2 text-center text-xs text-slate-500">
-                Showing first 400 of {sorted.length}. Tighten filters in a future version.
-              </p>
-            ) : null}
-          </div>
-        </div>
-
-        <div className="space-y-4 lg:col-span-3">
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/30 p-4">
-            {selected == null ? (
-              <p className="text-sm text-slate-500">Select a creative to plot degradation and rolling CTR.</p>
-            ) : (
-              <>
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <h2 className="font-display text-lg font-semibold text-white">Creative {selected}</h2>
-                  <span className="text-xs text-slate-500">x = days since launch</span>
-                </div>
+      <div className="space-y-4">
+        <div className="rounded-2xl border border-slate-800 bg-slate-900/30 p-4">
+          {selected == null ? (
+            <p className="text-sm text-slate-500">Enter a creative ID and load charts.</p>
+          ) : (
+            <>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <h2 className="font-display text-lg font-semibold text-white">Creative {selected}</h2>
+                <span className="text-xs text-slate-500">x = days since launch · daily facts only</span>
+              </div>
+              {series.length === 0 ? (
+                <p className="mt-2 text-sm text-slate-500">No series for this ID (not in daily data).</p>
+              ) : (
                 <div className="mt-4 h-72">
                   <ResponsiveContainer width="100%" height="100%">
                     <LineChart data={series}>
@@ -469,56 +425,56 @@ export function FatiguePage() {
                     </LineChart>
                   </ResponsiveContainer>
                 </div>
-              </>
-            )}
-          </div>
-
-          {selected != null && mlSeries.length > 0 ? (
-            <div className="rounded-2xl border border-slate-800 bg-slate-900/30 p-4">
-              <h3 className="font-display text-sm font-semibold text-white">CTR — actual vs model (smoothed)</h3>
-              <p className="mt-1 text-xs text-slate-500">
-                Teacher-forcing: each day uses the true prior 7-day window. Gaps between lines suggest fatigue /
-                drift the model is tracking.
-              </p>
-              <div className="mt-3 h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={mergedChart.filter((d) => d.ml_actual_ctr != null || d.ml_predicted_ctr != null)}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                    <XAxis dataKey="days_since_launch" tick={{ fill: '#94a3b8', fontSize: 11 }} />
-                    <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} domain={['auto', 'auto']} />
-                    <Tooltip contentStyle={{ background: '#111827', border: '1px solid #334155' }} />
-                    <Legend />
-                    <Line
-                      type="monotone"
-                      dataKey="rolling_ctr"
-                      name="Rolling CTR (7d)"
-                      stroke="#94a3b8"
-                      dot={false}
-                      strokeWidth={1}
-                      strokeDasharray="4 4"
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="ml_actual_ctr"
-                      name="ML target CTR"
-                      stroke="#f472b6"
-                      dot={false}
-                      strokeWidth={2}
-                    />
-                    <Line
-                      type="monotone"
-                      dataKey="ml_predicted_ctr"
-                      name="Predicted CTR"
-                      stroke="#34d399"
-                      dot={false}
-                      strokeWidth={2}
-                    />
-                  </LineChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          ) : null}
+              )}
+            </>
+          )}
         </div>
+
+        {selected != null && mlSeries.length > 0 ? (
+          <div className="rounded-2xl border border-slate-800 bg-slate-900/30 p-4">
+            <h3 className="font-display text-sm font-semibold text-white">CTR — actual vs model (smoothed)</h3>
+            <p className="mt-1 text-xs text-slate-500">
+              Teacher-forcing: each day uses the true prior 7-day window. Gaps between lines suggest fatigue /
+              drift the model is tracking.
+            </p>
+            <div className="mt-3 h-64">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={mergedChart.filter((d) => d.ml_actual_ctr != null || d.ml_predicted_ctr != null)}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+                  <XAxis dataKey="days_since_launch" tick={{ fill: '#94a3b8', fontSize: 11 }} />
+                  <YAxis tick={{ fill: '#94a3b8', fontSize: 11 }} domain={['auto', 'auto']} />
+                  <Tooltip contentStyle={{ background: '#111827', border: '1px solid #334155' }} />
+                  <Legend />
+                  <Line
+                    type="monotone"
+                    dataKey="rolling_ctr"
+                    name="Rolling CTR (7d)"
+                    stroke="#94a3b8"
+                    dot={false}
+                    strokeWidth={1}
+                    strokeDasharray="4 4"
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="ml_actual_ctr"
+                    name="ML target CTR"
+                    stroke="#f472b6"
+                    dot={false}
+                    strokeWidth={2}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="ml_predicted_ctr"
+                    name="Predicted CTR"
+                    stroke="#34d399"
+                    dot={false}
+                    strokeWidth={2}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   )

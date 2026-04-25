@@ -14,17 +14,20 @@ For full **ad-tech vocabulary**, **hackathon judging goals**, and **column-by-co
 
 ## PostgreSQL model (table mode)
 
-Schema DDL: **`db/schema.sql`**. Tables mirror the CSVs used for seeding:
+Schema DDL: **`db/schema.sql`**. Four tables are loaded from CSV; the API joins them in memory into an enriched daily frame for queries, fatigue, ML, and recommendations.
 
-| Table | Source CSV (under `data_science/data/`) |
-|-------|----------------------------------------|
-| `advertisers` | `advertisers.csv` |
-| `campaigns` | `campaigns.csv` |
-| `creatives` | `creatives.csv` |
-| `creative_daily_country_os_stats` | `creative_daily_country_os_stats.csv` |
-| `creative_summary` | `creative_summary.csv` |
+| Table | Role | Source CSV (`data_science/data/`) |
+|-------|------|-------------------------------------|
+| **`advertisers`** | Advertiser dimension (name, vertical, HQ). | `advertisers.csv` |
+| **`campaigns`** | Campaign dimension: links to advertiser, app, objective, dates, budget, targeting. | `campaigns.csv` |
+| **`creatives`** | One row per ad asset: format, dimensions, copy/theme hooks, visual feature scores, asset path. | `creatives.csv` |
+| **`creative_daily_country_os_stats`** | **Fact table**: one row per **date × creative × country × OS** — spend, impressions, clicks, conversions, revenue, `days_since_launch`, etc. | `creative_daily_country_os_stats.csv` |
 
-**Note:** `campaign_summary.csv` exists for analysis in `data_science/` but is **not** loaded by the current web seed scripts (same tables as before the split). Extend `ensure_db_seeded` / `bootstrap_pg_from_csv` if you need it in Postgres.
+**Relationships:** `campaigns.advertiser_id` → `advertisers`. `creatives.campaign_id` → `campaigns`. Each daily row references `campaign_id` and `creative_id` (and must match the creative’s campaign).
+
+**Not in Postgres:** `creative_summary.csv` / `campaign_summary.csv` remain optional **offline** analysis files under `data_science/`; the web stack does **not** create or seed a `creative_summary` table. Lifetime and “first 7d / last 7d” style metrics for recommendations are **derived in Python** from the daily fact table plus `creatives`.
+
+**Legacy volumes:** On startup, `ensure_db_seeded` drops a `creative_summary` table if it still exists from an older image so the DB matches this schema.
 
 ---
 
@@ -35,7 +38,7 @@ On **every backend container start**, `python -m scripts.ensure_db_seeded` runs 
 1. If core tables are missing → apply **`db/schema.sql`**.
 2. Count rows in **`creative_daily_country_os_stats`**.
 3. If count **> 0** → log **`skip import`** and **do nothing else** (no truncate, no CSV load).
-4. If count **== 0** → **`TRUNCATE`** the five seeded tables (restart identities) → load CSVs from **`IMPORT_DATA_DIR`** (Compose: **`/import`**, bind-mounted from **`../data_science/data`**).
+4. If count **== 0** → **`TRUNCATE`** the four seeded tables (restart identities) → load CSVs from **`IMPORT_DATA_DIR`** (Compose: **`/import`**, bind-mounted from **`../data_science/data`**).
 
 So your log line **`fact table empty; truncating (if any) and importing CSVs`** means the fact table had **zero** rows (fresh volume or wiped data). A second `docker compose up` with the same volume should show **`creative_daily_country_os_stats has … rows; skip import`**.
 

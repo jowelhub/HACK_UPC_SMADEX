@@ -32,14 +32,17 @@ export async function fetchFilterOptions(filters: PerformanceFilters) {
   return post<{ options: Record<string, unknown> }>('/api/performance/filter-options', { filters })
 }
 
-export async function fetchFatigueSummary(filters: PerformanceFilters) {
-  return post<{ items: FatigueRow[] }>('/api/fatigue/summary', { filters })
-}
-
 export async function fetchFatigueCurve(creativeId: number) {
   const r = await fetch(`/api/fatigue/curve/${creativeId}`)
   if (!r.ok) throw new Error(await r.text())
   return r.json() as Promise<{ creative_id: number; series: FatiguePoint[] }>
+}
+
+export async function fetchFatigueCreativeIds(): Promise<number[]> {
+  const r = await fetch('/api/fatigue/creative-ids')
+  if (!r.ok) throw new Error(await r.text())
+  const j = (await r.json()) as { creative_ids: number[] }
+  return j.creative_ids ?? []
 }
 
 export type FatigueMLStatus = {
@@ -69,25 +72,6 @@ export async function fetchFatigueMLPredictCurve(creativeId: number) {
 
 export async function fetchRecommendations(filters: PerformanceFilters) {
   return post<{ items: RecommendationRow[] }>('/api/recommendations/list', { filters })
-}
-
-export type FatigueRow = {
-  creative_id: number
-  campaign_id: number
-  baseline_cpa_usd: number
-  current_rolling_cpa_usd: number | null
-  degradation: number | null
-  degradation_cpa?: number | null
-  degradation_ctr?: number | null
-  degradation_cvr?: number | null
-  health_score: number | null
-  is_fatiguing_now: boolean
-  last_date: string
-  max_days_since_launch: number
-  creative_status?: string
-  fatigue_day?: number | null
-  ctr_decay_pct?: number | null
-  cvr_decay_pct?: number | null
 }
 
 export type FatiguePoint = {

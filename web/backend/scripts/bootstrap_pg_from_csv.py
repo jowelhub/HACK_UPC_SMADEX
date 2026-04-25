@@ -15,6 +15,21 @@ import pandas as pd
 from sqlalchemy import create_engine, text
 
 
+def _table_exists(conn, name: str) -> bool:
+    q = text(
+        "SELECT EXISTS (SELECT 1 FROM information_schema.tables "
+        "WHERE table_schema = 'public' AND table_name = :n)"
+    )
+    return bool(conn.execute(q, {"n": name}).scalar_one())
+
+
+def _drop_legacy_creative_summary(engine) -> None:
+    with engine.begin() as conn:
+        if _table_exists(conn, "creative_summary"):
+            conn.execute(text("DROP TABLE IF EXISTS creative_summary CASCADE"))
+            print("Dropped legacy table creative_summary")
+
+
 def _monorepo_root() -> Path:
     # web/backend/scripts -> repo root
     return Path(__file__).resolve().parents[3]
@@ -50,6 +65,8 @@ def main() -> int:
             if s:
                 conn.execute(text(s))
 
+    _drop_legacy_creative_summary(engine)
+
     with engine.connect() as conn:
         n = conn.execute(text("SELECT COUNT(*) FROM creative_daily_country_os_stats")).scalar_one()
     if int(n) > 0:
@@ -61,7 +78,6 @@ def main() -> int:
         ("campaigns", "campaigns.csv"),
         ("creatives", "creatives.csv"),
         ("creative_daily_country_os_stats", "creative_daily_country_os_stats.csv"),
-        ("creative_summary", "creative_summary.csv"),
     ]
     for table, fname in load_order:
         path = data_dir / fname

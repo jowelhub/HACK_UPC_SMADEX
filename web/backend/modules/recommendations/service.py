@@ -7,6 +7,7 @@ from typing import Any
 import pandas as pd
 
 from modules.fatigue.service import FatigueService
+from modules.recommendations.creative_metrics import build_creative_metrics_from_daily
 from shared.store import DataStore
 
 SIM_CAT = ["format", "theme", "hook_type", "dominant_color", "emotional_tone"]
@@ -23,7 +24,7 @@ def _similarity(row_a: pd.Series, row_b: pd.Series) -> float:
 
 class RecommendationService:
     def __init__(self, store: DataStore, fatigue: FatigueService) -> None:
-        self._cs = store.creative_summary.copy()
+        self._cs = build_creative_metrics_from_daily(store)
         self._fatigue = fatigue
         health = fatigue.health_map()
         self._cs["health_score"] = self._cs["creative_id"].map(health)
@@ -55,12 +56,10 @@ class RecommendationService:
         cid = int(row["creative_id"])
         health = float(row["health_score"]) if pd.notna(row["health_score"]) else 0.5
         roas = float(row["overall_roas"]) if pd.notna(row["overall_roas"]) else 0.0
-        status = str(row.get("creative_status", ""))
+        status = str(row.get("creative_status", "") or "")
         ctr_first = float(row["first_7d_ctr"]) if pd.notna(row.get("first_7d_ctr")) else None
         ctr_last = float(row["last_7d_ctr"]) if pd.notna(row.get("last_7d_ctr")) else None
-        under_from_start = status == "underperformer" or (
-            ctr_first is not None and ctr_last is not None and ctr_last < ctr_first * 0.5 and ctr_last < 0.001
-        )
+        under_from_start = ctr_first is not None and ctr_last is not None and ctr_last < ctr_first * 0.5 and ctr_last < 0.001
 
         action = "watch"
         reason = "Performance is within a normal band; keep monitoring."
@@ -114,7 +113,7 @@ class RecommendationService:
             "app_name": row.get("app_name"),
             "format": row.get("format"),
             "theme": row.get("theme"),
-            "creative_status": status,
+            "creative_status": status or None,
             "health_score": health,
             "overall_roas": roas,
             "action": action,
