@@ -145,7 +145,14 @@ export function CreativeDetailPage() {
 
       <div className="relative z-10 min-h-0">
         <h2 className={explorerUi.performanceLabel}>{PERFORMANCE_SECTION.heading}</h2>
-        <PerformanceResultPanels data={data} err={err} breakdownTitle={null} />
+        <PerformanceResultPanels
+          data={data}
+          err={err}
+          breakdownTitle={null}
+          compactMetrics
+          lockDailySeriesToKpiGoal
+          kpiGoal={campaign.kpi_goal ?? null}
+        />
         <CreativeCrossDimensionSection data={data} queryError={err} />
         <LlmInsightPanel context={insightContext} performanceError={err} />
       </div>

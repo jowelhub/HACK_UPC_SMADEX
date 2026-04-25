@@ -8,12 +8,7 @@ import { PerformanceResultPanels } from '../components/PerformanceResultPanels'
 import { useExplorerBootstrap } from '../hooks/useExplorerBootstrap'
 import { usePerformanceSlice } from '../hooks/usePerformanceSlice'
 import { findAdvertiserBySlug, findCampaignBySlug } from '../lib/hierarchyResolve'
-import {
-  BREAKDOWN_CHART_TITLE,
-  PAGE_SECTION,
-  PERFORMANCE_SECTION,
-  UI_COPY,
-} from '../lib/performanceLabels'
+import { PAGE_SECTION, PERFORMANCE_SECTION, UI_COPY } from '../lib/performanceLabels'
 import { buildCampaignFilters } from '../lib/performanceQueryDefaults'
 import { buildPerformanceInsightContext } from '../lib/performanceInsightContext'
 import { pathAdvertiser, pathCreative, pathHome } from '../lib/routes'
@@ -31,7 +26,7 @@ export function CampaignDetailPage() {
     return buildCampaignFilters(advertiser.advertiser_id, campaign.campaign_id, dates)
   }, [advertiser, campaign, dates.from, dates.to])
 
-  const { data, err } = usePerformanceSlice(filters, 'creative_id')
+  const { data, err } = usePerformanceSlice(filters, null)
 
   const insightContext = useMemo(
     () =>
@@ -85,7 +80,7 @@ export function CampaignDetailPage() {
         <PerformanceResultPanels
           data={data}
           err={err}
-          breakdownTitle={BREAKDOWN_CHART_TITLE.byCreative}
+          breakdownTitle={null}
           compactMetrics
           lockDailySeriesToKpiGoal
           kpiGoal={campaign.kpi_goal ?? null}
