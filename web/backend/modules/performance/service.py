@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections import Counter
 from typing import Any
 
 import pandas as pd
@@ -471,6 +472,14 @@ class PerformanceService:
                         labels_cr.append(_composite_creative_label(ser, self._store.campaigns))
                     else:
                         labels_cr.append(str(crid))
+                # Disambiguate duplicate headlines in the same chart (same label, different creatives).
+                dup_counts = Counter(labels_cr)
+                if any(c > 1 for c in dup_counts.values()):
+                    fixed: list[str] = []
+                    for lbl, (_, r) in zip(labels_cr, g2.iterrows()):
+                        crid = int(r["creative_id"])
+                        fixed.append(lbl if dup_counts[lbl] <= 1 else f"{lbl} (#{crid})")
+                    labels_cr = fixed
                 g2 = g2.copy()
                 g2["label"] = labels_cr
             result["breakdown"] = g2.to_dict(orient="records")

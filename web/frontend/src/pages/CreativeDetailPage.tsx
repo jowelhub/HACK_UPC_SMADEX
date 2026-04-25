@@ -82,13 +82,13 @@ export function CreativeDetailPage() {
         <DateRangeFields dateRange={dateRange} dates={dates} onChange={setDates} />
       </div>
 
-      <div className="flex justify-center rounded-lg border border-stone-200 bg-white p-4">
-        <div className="max-h-[min(52dvh,28rem)] w-full max-w-2xl">
+      <div className="isolate overflow-hidden rounded-lg border border-stone-200 bg-white p-4">
+        <div className="mx-auto flex w-full max-w-2xl justify-center">
           {imgOk ? (
             <img
               src={creativeAssetUrl(creative.creative_id)}
               alt=""
-              className="mx-auto h-auto max-h-full w-full object-contain"
+              className="mx-auto max-h-[min(52dvh,28rem)] w-full max-w-full object-contain"
               onError={() => setImgOk(false)}
             />
           ) : (
@@ -97,7 +97,7 @@ export function CreativeDetailPage() {
         </div>
       </div>
 
-      <div>
+      <div className="relative z-10 min-h-0">
         <h2 className={explorerUi.performanceLabel}>{PERFORMANCE_SECTION.heading}</h2>
         <PerformanceResultPanels data={data} err={err} breakdownTitle={null} />
       </div>

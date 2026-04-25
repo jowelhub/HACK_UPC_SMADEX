@@ -6,7 +6,13 @@ import { PerformanceResultPanels } from '../components/PerformanceResultPanels'
 import { useExplorerBootstrap } from '../hooks/useExplorerBootstrap'
 import { usePerformanceSlice } from '../hooks/usePerformanceSlice'
 import { findAdvertiserBySlug } from '../lib/hierarchyResolve'
-import { PAGE_SECTION, PERFORMANCE_SECTION, UI_COPY, formatMetaLine } from '../lib/performanceLabels'
+import {
+  BREAKDOWN_CHART_TITLE,
+  PAGE_SECTION,
+  PERFORMANCE_SECTION,
+  UI_COPY,
+  formatMetaLine,
+} from '../lib/performanceLabels'
 import { buildAdvertiserFilters } from '../lib/performanceQueryDefaults'
 import { pathCampaign, pathHome } from '../lib/routes'
 import { explorerUi } from '../lib/explorerUi'
@@ -22,7 +28,7 @@ export function AdvertiserDetailPage() {
     return buildAdvertiserFilters(advertiser.advertiser_id, dates)
   }, [advertiser, dates.from, dates.to])
 
-  const { data, err } = usePerformanceSlice(filters, null)
+  const { data, err } = usePerformanceSlice(filters, 'campaign_id')
 
   if (loadErr) {
     return <p className={explorerUi.errorMessage}>{loadErr}</p>
@@ -54,7 +60,12 @@ export function AdvertiserDetailPage() {
 
       <div>
         <h2 className={explorerUi.performanceLabel}>{PERFORMANCE_SECTION.heading}</h2>
-        <PerformanceResultPanels data={data} err={err} breakdownTitle={null} />
+        <PerformanceResultPanels
+          data={data}
+          err={err}
+          breakdownTitle={BREAKDOWN_CHART_TITLE.byCampaign}
+          compactMetrics
+        />
       </div>
 
       <div>

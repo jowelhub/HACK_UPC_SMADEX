@@ -4,6 +4,7 @@ export const PERFORMANCE_SECTION = {
 } as const
 
 export const BREAKDOWN_CHART_TITLE = {
+  byCampaign: 'By campaign',
   byCreative: 'By creative',
 } as const
 
