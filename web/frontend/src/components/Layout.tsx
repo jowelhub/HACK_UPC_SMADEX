@@ -12,8 +12,14 @@ export function Layout() {
     <div className="flex h-full min-h-0 flex-col">
       <header className="sticky top-0 z-20 shrink-0 border-b border-stone-200/90 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-3.5 sm:px-6">
-          <Link to={pathHome()} className="font-display text-lg font-semibold tracking-tight text-stone-900">
-            Smadex <span className="font-medium text-brand">Creative Lab</span>
+          <Link
+            to={pathHome()}
+            className="font-display flex items-center gap-2.5 text-lg font-semibold tracking-tight text-stone-900"
+          >
+            <img src="/logo.png" alt="" className="h-8 w-8 shrink-0 object-contain" width={32} height={32} />
+            <span>
+              Smadex <span className="font-medium text-brand">Creative Lab</span>
+            </span>
           </Link>
           <nav className="flex flex-wrap gap-1 text-sm font-medium">
             {!isHome ? (
