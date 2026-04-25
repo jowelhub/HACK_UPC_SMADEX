@@ -198,6 +198,31 @@ export function PerformancePage() {
       </div>
 
       <section className="rounded-2xl border border-slate-800 bg-slate-900/30 p-4 sm:p-5">
+        <div className="mb-4 flex min-w-0 flex-wrap items-end gap-3">
+          <label className="flex min-w-0 max-w-xs flex-1 flex-col gap-1 basis-[10rem]">
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">From</span>
+            <input
+              type="date"
+              className="input w-full min-w-0 py-1.5 text-sm"
+              min={dateRange?.min}
+              max={dateFromMax}
+              value={(filters.date_from as string) || ''}
+              onChange={(e) => handleDateFromInput(e.target.value)}
+            />
+          </label>
+          <label className="flex min-w-0 max-w-xs flex-1 flex-col gap-1 basis-[10rem]">
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">To</span>
+            <input
+              type="date"
+              className="input w-full min-w-0 py-1.5 text-sm"
+              min={dateToMin}
+              max={dateRange?.max}
+              value={(filters.date_to as string) || ''}
+              onChange={(e) => handleDateToInput(e.target.value)}
+            />
+          </label>
+        </div>
+
         <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-3">
           <div className="min-w-0 rounded-lg border border-slate-800/70 bg-slate-950/25 p-3">
               <MultiSelect
@@ -235,37 +260,7 @@ export function PerformancePage() {
         </div>
         <details className="mt-5 rounded-lg border border-slate-800 bg-ink-950/50 p-3">
           <summary className="cursor-pointer select-none text-sm font-medium text-slate-300">More filters</summary>
-          <div className="mt-3 rounded-lg border border-slate-800/80 bg-slate-950/30 p-3">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-              <label className="flex min-w-0 flex-1 flex-col gap-1">
-                <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">From</span>
-                <input
-                  type="date"
-                  className="input w-full py-1.5 text-sm"
-                  min={dateRange?.min}
-                  max={dateFromMax}
-                  value={(filters.date_from as string) || ''}
-                  onChange={(e) => handleDateFromInput(e.target.value)}
-                />
-              </label>
-              <span className="hidden pb-2 text-slate-600 sm:inline" aria-hidden>
-                →
-              </span>
-              <label className="flex min-w-0 flex-1 flex-col gap-1">
-                <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">To</span>
-                <input
-                  type="date"
-                  className="input w-full py-1.5 text-sm"
-                  min={dateToMin}
-                  max={dateRange?.max}
-                  value={(filters.date_to as string) || ''}
-                  onChange={(e) => handleDateToInput(e.target.value)}
-                />
-              </label>
-            </div>
-          </div>
-
-          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {moreChipKeys.map(({ key, label, optKey, labeledKey }) => (
               <MultiSelect
                 key={String(key)}
