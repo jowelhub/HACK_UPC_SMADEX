@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { ChatMarkdown } from '../components/ChatMarkdown'
 
 type Row = {
@@ -163,88 +163,118 @@ export function ChatPage() {
     }
   }, [busy, input, rows])
 
+  const onComposerKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      if (busy || !input.trim()) return
+      e.currentTarget.form?.requestSubmit()
+    }
+  }
+
   return (
-    <div className="flex h-[calc(100vh-7rem)] min-h-[420px] flex-col gap-4 sm:h-[calc(100vh-6rem)]">
-      <div>
-        <h1 className="font-display text-2xl font-semibold tracking-tight text-stone-900">
+    <div className="mx-auto flex h-full min-h-0 w-full max-w-3xl flex-col">
+      <header className="shrink-0 border-b border-stone-200/60 pb-3 sm:pb-4">
+        <h1 className="font-display text-lg font-semibold tracking-tight text-stone-900 sm:text-xl">
           Natural language to SQL copilot
         </h1>
-        <p className="mt-1 max-w-2xl text-sm text-stone-600">
-          Powered by <strong>Google @google/genai</strong> (Gemma 4). Using <strong>function calling</strong> with tools:{' '}
-          <code className="text-xs">runSQL</code> + <code className="text-xs">getDatabaseSchema</code> (read-only SQL on your Postgres). Set{' '}
-          <code className="rounded bg-stone-100 px-1">GOOGLE_GENERATIVE_AI_API_KEY</code> in <code className="rounded bg-stone-100 px-1">web/.env</code> for
-          Docker.
+        <p className="mt-1.5 text-xs leading-relaxed text-stone-500 sm:text-sm sm:leading-normal">
+          Powered by <span className="text-stone-600">Google @google/genai</span> (Gemma 4). Function calling:{' '}
+          <code className="rounded-md bg-stone-100/90 px-1.5 py-0.5 font-mono text-[0.7rem] text-stone-700 sm:text-xs">
+            runSQL
+          </code>
+          <span className="text-stone-400"> + </span>
+          <code className="rounded-md bg-stone-100/90 px-1.5 py-0.5 font-mono text-[0.7rem] text-stone-700 sm:text-xs">
+            getDatabaseSchema
+          </code>
         </p>
-      </div>
+      </header>
 
       {error ? (
-        <div className="surface-panel border-rose-200 bg-rose-50 text-sm text-rose-900">
+        <div className="mt-3 shrink-0 rounded-lg border border-rose-200/80 bg-rose-50/90 px-3 py-2.5 text-sm text-rose-900">
           {error}
-          <button type="button" className="btn-secondary ml-2" onClick={() => setError(null)}>
+          <button type="button" className="btn-secondary ml-2 align-middle" onClick={() => setError(null)}>
             Dismiss
           </button>
         </div>
       ) : null}
 
-      <div className="min-h-0 flex-1 overflow-y-auto rounded-md border border-stone-200 bg-stone-50/60 p-3 sm:p-4">
-        {rows.length === 0 && !pending ? (
-          <p className="text-sm text-stone-500">Try: “Top 10 creatives by CTR in the last 30 days”</p>
-        ) : null}
-        <ul className="space-y-3">
-          {rows.map((m) => (
-            <li
-              key={m.id}
-              className={
-                m.role === 'user'
-                  ? 'ml-auto min-w-0 max-w-[min(100%,40rem)] rounded-md border border-brand-100 bg-brand-50/40 p-3 shadow-sm'
-                  : 'mr-auto min-w-0 max-w-[min(100%,48rem)] rounded-md border border-stone-200/80 bg-white p-3 shadow-sm'
-              }
-            >
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-stone-400">
-                {m.role === 'user' ? 'You' : 'Assistant'}
+      {/* Thread: only this region scrolls */}
+      <div className="relative min-h-0 min-w-0 flex-1">
+        <div
+          className="h-full min-h-0 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] [-webkit-overflow-scrolling:touch] px-0 pt-1 sm:pt-2"
+          role="log"
+          aria-live="polite"
+        >
+          <div className="space-y-5 py-1 pb-3 sm:space-y-6 sm:pb-4">
+            {rows.length === 0 && !pending ? (
+              <p className="rounded-2xl bg-stone-100/60 px-4 py-3 text-sm text-stone-500 sm:px-5">
+                <span className="text-stone-400">Try:</span> “Top 10 creatives by CTR in the last 30 days”
+              </p>
+            ) : null}
+            {rows.map((m) => (
+              <div key={m.id} className="min-w-0">
+                {m.role === 'user' ? (
+                  <div className="flex justify-end">
+                    <div className="max-w-[min(100%,85%)] min-w-0">
+                      <div className="mb-1.5 pl-1 text-right text-[10px] font-medium uppercase tracking-wider text-stone-400">
+                        You
+                      </div>
+                      <div className="rounded-2xl rounded-tr-md border border-brand-200/30 bg-gradient-to-b from-brand-50 to-brand-50/80 px-4 py-2.5 text-sm text-stone-800 shadow-sm sm:px-4 sm:py-3">
+                        <p className="whitespace-pre-wrap break-words leading-relaxed">{m.text}</p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="min-w-0 pl-0 sm:pl-0.5">
+                    <div className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-stone-400">Assistant</div>
+                    {m.thought ? (
+                      <details
+                        className="mb-2 rounded-xl border border-stone-200/60 bg-stone-50/80 open:bg-stone-50/90"
+                        open={!m.text}
+                      >
+                        <summary className="cursor-pointer select-none px-3 py-2 text-xs font-medium text-stone-600 sm:py-2.5">
+                          Thinking
+                        </summary>
+                        <div className="border-t border-stone-200/50 px-3 py-2.5 sm:px-3.5">
+                          <ChatMarkdown compact>{m.thought}</ChatMarkdown>
+                        </div>
+                      </details>
+                    ) : null}
+                    {m.text ? (
+                      <div className="min-w-0 break-words text-stone-800">
+                        <ChatMarkdown>{m.text}</ChatMarkdown>
+                      </div>
+                    ) : null}
+                  </div>
+                )}
               </div>
-              {m.role === 'model' && m.thought ? (
-                <details
-                  className="mt-1 rounded border border-stone-200 bg-stone-50/90 text-stone-600 open:bg-stone-50"
-                  open={!m.text}
-                >
-                  <summary className="cursor-pointer px-2 py-1.5 text-xs font-medium">Thinking</summary>
-                  <div className="border-t border-stone-200/80 px-2 py-2">
-                    <ChatMarkdown compact>{m.thought}</ChatMarkdown>
+            ))}
+            {pending ? (
+              <div className="min-w-0 pl-0.5 sm:pl-0.5">
+                <div className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-stone-400">Assistant</div>
+                {pending.thought ? (
+                  <details open className="mb-2 rounded-xl border border-amber-200/40 bg-amber-50/30">
+                    <summary className="cursor-pointer select-none px-3 py-2 text-xs font-medium text-amber-900/80">
+                      Thinking
+                    </summary>
+                    <div className="border-t border-amber-200/20 px-3 py-2.5">
+                      <ChatMarkdown compact>{pending.thought}</ChatMarkdown>
+                    </div>
+                  </details>
+                ) : null}
+                {pending.text ? (
+                  <div className="min-w-0 text-stone-800">
+                    <ChatMarkdown>{pending.text}</ChatMarkdown>
                   </div>
-                </details>
-              ) : null}
-              {m.role === 'model' && m.text ? (
-                <div className="mt-2 min-w-0 max-w-full">
-                  <ChatMarkdown>{m.text}</ChatMarkdown>
-                </div>
-              ) : null}
-              {m.role === 'user' && m.text ? (
-                <p className="mt-2 whitespace-pre-wrap text-stone-800 leading-relaxed">{m.text}</p>
-              ) : null}
-            </li>
-          ))}
-          {pending ? (
-            <li className="mr-auto min-w-0 max-w-[min(100%,48rem)] rounded-md border border-dashed border-stone-300 bg-white/90 p-3">
-              <div className="text-[11px] font-semibold uppercase text-stone-400">Assistant</div>
-              {pending.thought ? (
-                <details open className="mt-1 rounded border border-amber-100/80 bg-amber-50/50 text-amber-950">
-                  <summary className="cursor-pointer px-2 py-1 text-xs font-medium">Thinking</summary>
-                  <div className="border-t border-amber-100/80 px-2 py-2">
-                    <ChatMarkdown compact>{pending.thought}</ChatMarkdown>
-                  </div>
-                </details>
-              ) : null}
-              {pending.text ? (
-                <div className="mt-2 min-w-0 max-w-full text-stone-800">
-                  <ChatMarkdown>{pending.text}</ChatMarkdown>
-                </div>
-              ) : null}
-              {busy && !pending.text && !pending.thought ? <p className="text-sm text-stone-500">…</p> : null}
-            </li>
-          ) : null}
-        </ul>
-        <div ref={bottom} />
+                ) : null}
+                {busy && !pending.text && !pending.thought ? (
+                  <p className="text-sm text-stone-500">…</p>
+                ) : null}
+              </div>
+            ) : null}
+            <div ref={bottom} className="h-1 shrink-0" />
+          </div>
+        </div>
       </div>
 
       <form
@@ -252,19 +282,32 @@ export function ChatPage() {
           e.preventDefault()
           void send()
         }}
-        className="shrink-0 space-y-2"
+        className="shrink-0 border-t border-stone-200/50 bg-canvas/95 pt-3 pb-1 [padding-bottom:max(0.25rem,env(safe-area-inset-bottom))] sm:pt-4"
       >
-        <textarea
-          className="input w-full min-h-[88px] resize-y"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask about the Smadex data…"
-          disabled={busy}
-        />
-        <div className="flex flex-wrap gap-2">
-          <button type="submit" className="btn-primary" disabled={busy || !input.trim()}>
-            {busy ? '…' : 'Send'}
-          </button>
+        <div className="rounded-2xl border border-stone-200/60 bg-white p-2.5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] sm:p-3">
+          <div className="grid w-full min-w-0 grid-cols-1 items-end gap-2.5 sm:grid-cols-[1fr_auto] sm:gap-3">
+            <textarea
+              className="input min-h-[72px] w-full min-w-0 max-h-40 resize-y rounded-xl border-stone-200/90 bg-stone-50/50 px-3.5 py-2.5 text-sm leading-relaxed focus:border-brand-200/80 focus:bg-white focus:ring-2 focus:ring-brand/15"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={onComposerKeyDown}
+              placeholder="Message the copilot…"
+              disabled={busy}
+              rows={2}
+            />
+            <div className="flex justify-end sm:pt-0.5">
+              <button
+                type="submit"
+                className="btn-primary min-w-[5.25rem] rounded-xl px-5 py-2.5 shadow-sm"
+                disabled={busy || !input.trim()}
+              >
+                {busy ? '…' : 'Send'}
+              </button>
+            </div>
+          </div>
+          <p className="mt-2.5 pr-0.5 text-right text-[10px] text-stone-400 sm:text-[11px]">
+            Enter to send · Shift+Enter for new line
+          </p>
         </div>
       </form>
     </div>

@@ -37,7 +37,9 @@ export function Layout() {
         className={
           loc.pathname === '/performance'
             ? 'flex min-h-0 w-full flex-1 flex-col overflow-hidden px-0 py-0'
-            : 'mx-auto w-full max-w-7xl min-h-0 flex-1 overflow-y-auto px-4 py-8 sm:px-6'
+            : loc.pathname === '/copilot'
+              ? 'mx-auto flex h-full min-h-0 w-full max-w-7xl flex-1 flex-col overflow-hidden px-4 pb-3 pt-3 sm:px-6 sm:pb-5 sm:pt-3'
+              : 'mx-auto w-full max-w-7xl min-h-0 flex-1 overflow-y-auto px-4 py-8 sm:px-6'
         }
       >
         <Outlet />

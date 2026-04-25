@@ -15,7 +15,13 @@ async function post<T>(path: string, body: unknown): Promise<T> {
 
 export type HierarchyCreative = { creative_id: number; label: string; asset_file: string | null }
 export type HierarchyCampaign = { campaign_id: number; label: string; creatives: HierarchyCreative[] }
-export type HierarchyAdvertiser = { advertiser_id: number; label: string; campaigns: HierarchyCampaign[] }
+export type HierarchyAdvertiser = {
+  advertiser_id: number
+  label: string
+  vertical?: string | null
+  hq_region?: string | null
+  campaigns: HierarchyCampaign[]
+}
 
 /** Drill-down scope for performance filters and breakdowns. */
 export type PerformanceScope =

@@ -211,7 +211,15 @@ def _build_hierarchy(store: DataStore) -> list[dict[str, Any]]:
                     }
                 )
             camp_list.append({"campaign_id": cid, "label": clabel, "creatives": crlist})
-        out.append({"advertiser_id": aid, "label": name, "campaigns": camp_list})
+        out.append(
+            {
+                "advertiser_id": aid,
+                "label": name,
+                "vertical": str(a.get("vertical") or "") or None,
+                "hq_region": str(a.get("hq_region") or "") or None,
+                "campaigns": camp_list,
+            }
+        )
     return out
 
 

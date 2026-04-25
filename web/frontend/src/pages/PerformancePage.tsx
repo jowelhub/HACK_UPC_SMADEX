@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import {
   Bar,
   BarChart,
@@ -147,6 +148,8 @@ function readInitialAsideW(): number {
 }
 
 export function PerformancePage() {
+  const [searchParams] = useSearchParams()
+  const appliedAdvertiserFromUrl = useRef(false)
   const [hierarchy, setHierarchy] = useState<HierarchyAdvertiser[] | null>(null)
   const [opts, setOpts] = useState<Record<string, unknown> | null>(null)
   const [scope, setScope] = useState<PerformanceScope>({ kind: 'all' })
@@ -189,6 +192,18 @@ export function PerformancePage() {
       .then((h) => setHierarchy(h.advertisers))
       .catch((e) => setErr(String(e)))
   }, [])
+
+  useEffect(() => {
+    if (!hierarchy?.length || appliedAdvertiserFromUrl.current) return
+    const raw = searchParams.get('advertiser_id')
+    if (raw) {
+      const n = parseInt(raw, 10)
+      if (!Number.isNaN(n) && hierarchy.some((a) => a.advertiser_id === n)) {
+        setScope({ kind: 'advertiser', advertiserId: n })
+      }
+    }
+    appliedAdvertiserFromUrl.current = true
+  }, [hierarchy, searchParams])
 
   const dateRange = opts?.date_range as { min?: string; max?: string } | undefined
 
