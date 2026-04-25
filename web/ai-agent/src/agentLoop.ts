@@ -154,6 +154,10 @@ export function createCopilotReadable(
         }
       }
 
+      const thinkingLevel = model.toLowerCase().includes('gemma')
+        ? ThinkingLevel.MINIMAL
+        : ThinkingLevel.HIGH
+
       const baseConfig: GenerateContentConfig = {
         systemInstruction,
         temperature: 0.7,
@@ -163,7 +167,7 @@ export function createCopilotReadable(
           functionCallingConfig: { mode: FunctionCallingConfigMode.AUTO },
         },
         automaticFunctionCalling: { disable: true },
-        thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH, includeThoughts: true },
+        thinkingConfig: { thinkingLevel, includeThoughts: true },
       }
 
       let contents: Content[] = toContents(messages)

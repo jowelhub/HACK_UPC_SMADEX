@@ -58,6 +58,12 @@ export function PerformanceResultPanels({
 
   const summary = data?.summary
   const ts = data?.timeseries ?? []
+  /** Chronological rows with `day_index` 1…n for X-axis (calendar date stays in payload for tooltips). */
+  const tsChartData = useMemo(() => {
+    const rows = [...ts] as Array<Record<string, unknown> & { date?: string }>
+    rows.sort((a, b) => String(a.date ?? '').localeCompare(String(b.date ?? '')))
+    return rows.map((row, i) => ({ ...row, day_index: i + 1 }))
+  }, [ts])
   const breakdownRaw = data?.breakdown ?? []
 
   const barData = useMemo(() => {
@@ -90,9 +96,14 @@ export function PerformanceResultPanels({
       </div>
       <div className="mt-1 h-[min(16rem,42dvh)] min-h-[12rem] w-full min-w-0 flex-1 sm:h-[min(18rem,40dvh)] lg:h-[min(20rem,44dvh)] xl:h-80">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={ts}>
+          <LineChart data={tsChartData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
-            <XAxis dataKey="date" tick={{ fill: '#78716c', fontSize: 11 }} />
+            <XAxis
+              dataKey="day_index"
+              tick={{ fill: '#78716c', fontSize: 11 }}
+              allowDecimals={false}
+              minTickGap={10}
+            />
             <YAxis
               yAxisId="kpi"
               tick={{ fill: '#6b21a8', fontSize: 11 }}
@@ -106,6 +117,14 @@ export function PerformanceResultPanels({
             />
             <Tooltip
               {...chartTooltipStyle}
+              labelFormatter={(_, payload) => {
+                const row = payload?.[0]?.payload as { date?: string; day_index?: number } | undefined
+                const d = row?.date != null ? String(row.date) : null
+                const day = row?.day_index
+                if (d && day != null) return `Day ${day} · ${d}`
+                if (day != null) return `Day ${day}`
+                return ''
+              }}
               formatter={(value, name) => {
                 if (value === undefined || value === null) return ['-', String(name)]
                 const num = typeof value === 'number' ? value : Number(value)
@@ -183,9 +202,14 @@ export function PerformanceResultPanels({
       </div>
       <div className="mt-1 h-[min(16rem,42dvh)] min-h-[12rem] w-full min-w-0 flex-1 sm:h-[min(18rem,40dvh)] lg:h-[min(20rem,44dvh)] xl:h-80">
         <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={ts}>
+          <LineChart data={tsChartData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
-            <XAxis dataKey="date" tick={{ fill: '#78716c', fontSize: 11 }} />
+            <XAxis
+              dataKey="day_index"
+              tick={{ fill: '#78716c', fontSize: 11 }}
+              allowDecimals={false}
+              minTickGap={10}
+            />
             <YAxis
               yAxisId="l"
               tick={{ fill: '#78716c', fontSize: 11 }}
@@ -199,6 +223,14 @@ export function PerformanceResultPanels({
             />
             <Tooltip
               {...chartTooltipStyle}
+              labelFormatter={(_, payload) => {
+                const row = payload?.[0]?.payload as { date?: string; day_index?: number } | undefined
+                const d = row?.date != null ? String(row.date) : null
+                const day = row?.day_index
+                if (d && day != null) return `Day ${day} · ${d}`
+                if (day != null) return `Day ${day}`
+                return ''
+              }}
               formatter={(value, name) => {
                 const label = String(name)
                 if (value === undefined || value === null) return ['-', label]

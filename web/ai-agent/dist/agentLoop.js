@@ -120,6 +120,9 @@ export function createCopilotReadable(client, options) {
                     /* already closed */
                 }
             };
+            const thinkingLevel = model.toLowerCase().includes('gemma')
+                ? ThinkingLevel.MINIMAL
+                : ThinkingLevel.HIGH;
             const baseConfig = {
                 systemInstruction,
                 temperature: 0.7,
@@ -129,7 +132,7 @@ export function createCopilotReadable(client, options) {
                     functionCallingConfig: { mode: FunctionCallingConfigMode.AUTO },
                 },
                 automaticFunctionCalling: { disable: true },
-                thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH, includeThoughts: true },
+                thinkingConfig: { thinkingLevel, includeThoughts: true },
             };
             let contents = toContents(messages);
             if (!contents.length) {
