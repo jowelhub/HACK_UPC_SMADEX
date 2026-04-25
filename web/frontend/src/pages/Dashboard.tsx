@@ -4,7 +4,7 @@ const cards = [
   { to: '/performance', title: 'Performance' },
   { to: '/fatigue', title: 'Fatigue' },
   { to: '/recommendations', title: 'Recommendations' },
-  { to: '/copilot', title: 'Analytics copilot' },
+  { to: '/copilot', title: 'Natural language to SQL copilot' },
 ]
 
 export function Dashboard() {

@@ -166,10 +166,12 @@ export function ChatPage() {
   return (
     <div className="flex h-[calc(100vh-7rem)] min-h-[420px] flex-col gap-4 sm:h-[calc(100vh-6rem)]">
       <div>
-        <h1 className="font-display text-2xl font-semibold tracking-tight text-stone-900">Analytics copilot</h1>
+        <h1 className="font-display text-2xl font-semibold tracking-tight text-stone-900">
+          Natural language to SQL copilot
+        </h1>
         <p className="mt-1 max-w-2xl text-sm text-stone-600">
-          Powered by <strong>Google @google/genai</strong> (Gemma 4). Tools: <code className="text-xs">runSQL</code> +{' '}
-          <code className="text-xs">getDatabaseSchema</code> only (read-only SQL on your Postgres). Set{' '}
+          Powered by <strong>Google @google/genai</strong> (Gemma 4). Using <strong>function calling</strong> with tools:{' '}
+          <code className="text-xs">runSQL</code> + <code className="text-xs">getDatabaseSchema</code> (read-only SQL on your Postgres). Set{' '}
           <code className="rounded bg-stone-100 px-1">GOOGLE_GENERATIVE_AI_API_KEY</code> in <code className="rounded bg-stone-100 px-1">web/.env</code> for
           Docker.
         </p>
@@ -201,35 +203,41 @@ export function ChatPage() {
               <div className="text-[11px] font-semibold uppercase tracking-wide text-stone-400">
                 {m.role === 'user' ? 'You' : 'Assistant'}
               </div>
-              {m.thought && m.text ? (
-                <details className="mt-1 rounded border border-stone-200 bg-stone-50/90 text-stone-600 open:bg-stone-50">
+              {m.role === 'model' && m.thought ? (
+                <details
+                  className="mt-1 rounded border border-stone-200 bg-stone-50/90 text-stone-600 open:bg-stone-50"
+                  open={!m.text}
+                >
                   <summary className="cursor-pointer px-2 py-1.5 text-xs font-medium">Thinking</summary>
                   <div className="border-t border-stone-200/80 px-2 py-2">
                     <ChatMarkdown compact>{m.thought}</ChatMarkdown>
                   </div>
                 </details>
               ) : null}
-              {m.text || m.thought ? (
+              {m.role === 'model' && m.text ? (
                 <div className="mt-2 min-w-0 max-w-full">
-                  <ChatMarkdown>{m.text || m.thought || ''}</ChatMarkdown>
+                  <ChatMarkdown>{m.text}</ChatMarkdown>
                 </div>
+              ) : null}
+              {m.role === 'user' && m.text ? (
+                <p className="mt-2 whitespace-pre-wrap text-stone-800 leading-relaxed">{m.text}</p>
               ) : null}
             </li>
           ))}
           {pending ? (
             <li className="mr-auto min-w-0 max-w-[min(100%,48rem)] rounded-md border border-dashed border-stone-300 bg-white/90 p-3">
               <div className="text-[11px] font-semibold uppercase text-stone-400">Assistant</div>
-              {pending.thought && pending.text ? (
+              {pending.thought ? (
                 <details open className="mt-1 rounded border border-amber-100/80 bg-amber-50/50 text-amber-950">
-                  <summary className="cursor-pointer px-2 py-1 text-xs">Thinking</summary>
+                  <summary className="cursor-pointer px-2 py-1 text-xs font-medium">Thinking</summary>
                   <div className="border-t border-amber-100/80 px-2 py-2">
                     <ChatMarkdown compact>{pending.thought}</ChatMarkdown>
                   </div>
                 </details>
               ) : null}
-              {pending.text || pending.thought ? (
-                <div className="mt-2 min-w-0 max-w-full">
-                  <ChatMarkdown>{pending.text || pending.thought || ''}</ChatMarkdown>
+              {pending.text ? (
+                <div className="mt-2 min-w-0 max-w-full text-stone-800">
+                  <ChatMarkdown>{pending.text}</ChatMarkdown>
                 </div>
               ) : null}
               {busy && !pending.text && !pending.thought ? <p className="text-sm text-stone-500">…</p> : null}

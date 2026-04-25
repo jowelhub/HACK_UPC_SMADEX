@@ -91,8 +91,8 @@ docker compose up --build
 - **`/api/performance/*`** — Sliced metrics from the enriched daily frame.
 - **`/api/fatigue/*`** — Creative IDs and **ML-only** CTR training / prediction (no rule-based degradation API).
 - **`/api/recommendations/*`** — Recommendation helpers.
-- **`/api/agent/sql`** (POST) — **Read-only** PostgreSQL for the **Analytics copilot** (internal; called by the `ai-agent` service). One `SELECT` / `WITH … SELECT` at a time, row cap, optional shared secret: `AGENT_SQL_TOKEN` on backend and `X-Agent-Token` on the request.
-- **Analytics copilot (UI: `/copilot`)** — Separate **Node** service `web/ai-agent/`: Google **`@google/genai`** (default **Gemma 4** `gemma-4-31b-it`, override with `CHAT_MODEL`). Server-Sent Events at **`/api/agent/chat`**: streaming text, optional “thought” parts, and function tools **`runSQL`** (read-only SQL via FastAPI) and **`getDatabaseSchema`**. No code execution. Nginx proxies `/api/agent/` to the copilot service. Required env: **`GOOGLE_GENERATIVE_AI_API_KEY`**. Local Vite dev proxies `/api/agent` to **3001** (`cd web/ai-agent && npm install && npm start` with the API on 8000).
+- **`/api/agent/sql`** (POST) — **Read-only** PostgreSQL for the **NL → SQL copilot** (internal; called by the `ai-agent` service). One `SELECT` / `WITH … SELECT` at a time, row cap, optional shared secret: `AGENT_SQL_TOKEN` on backend and `X-Agent-Token` on the request.
+- **Natural language to SQL copilot (UI: `/copilot`)** — Separate **Node** service `web/ai-agent/`: Google **`@google/genai`** (default **Gemma 4** `gemma-4-31b-it`, override with `CHAT_MODEL`). **Function calling** with **`runSQL`** + **`getDatabaseSchema`**. Server-Sent Events at **`/api/agent/chat`**: streaming text and optional “thought” parts. Nginx proxies `/api/agent/` to the copilot service. Required env: **`GOOGLE_GENERATIVE_AI_API_KEY`**. Local Vite dev proxies `/api/agent` to **3001** (`cd web/ai-agent && npm install && npm start` with the API on 8000).
 
 ---
 

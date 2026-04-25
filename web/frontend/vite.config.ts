@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      // Analytics copilot (Google @google/genai) — `cd web/ai-agent && npm start` on 3001 for local dev
+      // NL → SQL copilot (web/ai-agent + @google/genai) — `cd web/ai-agent && npm start` on 3001 for local dev
       '/api/agent': {
         target: 'http://127.0.0.1:3001',
         changeOrigin: true,
