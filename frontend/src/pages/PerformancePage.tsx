@@ -12,6 +12,7 @@ import {
   YAxis,
 } from 'recharts'
 import { MetricCard } from '../components/MetricCard'
+import type { LabeledOption } from '../components/MultiSelect'
 import { MultiSelect } from '../components/MultiSelect'
 import { fetchFilterOptions, fetchPerformanceQuery, type PerformanceFilters } from '../lib/api'
 
@@ -23,6 +24,20 @@ function fmt(n: number | null | undefined, digits = 2) {
 function fmtPct(n: number | null | undefined) {
   if (n === null || n === undefined || Number.isNaN(n)) return '-'
   return `${(n * 100).toFixed(2)}%`
+}
+
+function optionsForChip(
+  o: Record<string, unknown> | null,
+  optKey: string,
+  labeledKey?: string,
+): (string | number)[] | LabeledOption[] {
+  if (!o) return []
+  if (labeledKey) {
+    const labeled = o[labeledKey] as LabeledOption[] | undefined
+    if (labeled && Array.isArray(labeled) && labeled.length > 0) return labeled
+  }
+  const raw = o[optKey]
+  return Array.isArray(raw) ? (raw as (string | number)[]) : []
 }
 
 export function PerformancePage() {
@@ -96,10 +111,10 @@ export function PerformancePage() {
   const br = useMemo(() => data?.breakdown ?? [], [data])
   const lb = useMemo(() => data?.leaderboard ?? [], [data])
 
-  const chipKeys: { key: keyof PerformanceFilters; label: string; optKey: string }[] = [
-    { key: 'advertiser_ids', label: 'Advertisers', optKey: 'advertiser_id' },
-    { key: 'campaign_ids', label: 'Campaigns', optKey: 'campaign_id' },
-    { key: 'creative_ids', label: 'Creatives', optKey: 'creative_id' },
+  const chipKeys: { key: keyof PerformanceFilters; label: string; optKey: string; labeledKey?: string }[] = [
+    { key: 'advertiser_ids', label: 'Advertisers', optKey: 'advertiser_id', labeledKey: 'advertiser_labeled' },
+    { key: 'campaign_ids', label: 'Campaigns', optKey: 'campaign_id', labeledKey: 'campaign_labeled' },
+    { key: 'creative_ids', label: 'Creatives', optKey: 'creative_id', labeledKey: 'creative_labeled' },
     { key: 'countries', label: 'Countries', optKey: 'country' },
     { key: 'os_list', label: 'OS', optKey: 'os' },
     { key: 'verticals', label: 'Vertical', optKey: 'vertical' },
@@ -170,11 +185,11 @@ export function PerformancePage() {
         </div>
 
         <div className="mt-4 grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
-          {chipKeys.slice(0, 6).map(({ key, label, optKey }) => (
+          {chipKeys.slice(0, 6).map(({ key, label, optKey, labeledKey }) => (
             <MultiSelect
               key={String(key)}
               label={label}
-              options={(opts?.[optKey] as (string | number)[]) || []}
+              options={optionsForChip(opts, optKey, labeledKey)}
               value={(filters[key] as (string | number)[]) || []}
               onChange={(v) => setFilters((f) => ({ ...f, [key]: v.length ? v : undefined }))}
             />
@@ -183,11 +198,11 @@ export function PerformancePage() {
         <details className="mt-4 rounded-lg border border-slate-800 bg-ink-950/50 p-3">
           <summary className="cursor-pointer text-sm font-medium text-slate-300">More filters</summary>
           <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {chipKeys.slice(6).map(({ key, label, optKey }) => (
+            {chipKeys.slice(6).map(({ key, label, optKey, labeledKey }) => (
               <MultiSelect
                 key={String(key)}
                 label={label}
-                options={(opts?.[optKey] as (string | number)[]) || []}
+                options={optionsForChip(opts, optKey, labeledKey)}
                 value={(filters[key] as (string | number)[]) || []}
                 onChange={(v) => setFilters((f) => ({ ...f, [key]: v.length ? v : undefined }))}
               />
@@ -273,7 +288,7 @@ export function PerformancePage() {
             <MetricCard
               label="Rows / entities"
               value={`${fmt(data?.row_count, 0)} rows`}
-              hint={`${summary.distinct_creatives} creatives · ${summary.distinct_campaigns} campaigns · ${summary.calendar_days_in_window} days`}
+              hint={`${summary.distinct_creatives} creatives | ${summary.distinct_campaigns} campaigns | ${summary.calendar_days_in_window} days`}
             />
           </div>
 
@@ -298,7 +313,7 @@ export function PerformancePage() {
 
             {breakdown ? (
               <div className="rounded-2xl border border-slate-800 bg-slate-900/30 p-4">
-                <h3 className="font-display text-sm font-semibold text-white">Breakdown · {breakdown}</h3>
+                <h3 className="font-display text-sm font-semibold text-white">Breakdown | {breakdown}</h3>
                 <div className="mt-3 h-64 sm:h-72">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={br}>
@@ -334,7 +349,12 @@ export function PerformancePage() {
                 <tbody>
                   {lb.map((row) => (
                     <tr key={String(row.creative_id)} className="border-b border-slate-800/60 text-slate-300">
-                      <td className="py-2 font-mono text-xs text-accent">{String(row.creative_id)}</td>
+                      <td className="py-2">
+                        <div className="max-w-[220px] truncate text-sm text-slate-200" title={String(row.creative_label || '')}>
+                          {String(row.creative_label || row.creative_id)}
+                        </div>
+                        <div className="font-mono text-[10px] text-slate-500">#{String(row.creative_id)}</div>
+                      </td>
                       <td className="py-2">{fmt(row.impressions as number, 0)}</td>
                       <td className="py-2">{fmtPct(row.ctr as number)}</td>
                       <td className="py-2">{fmt(row.cpa_usd as number)}</td>

@@ -30,6 +30,52 @@ NUMERIC_FILTER_COLUMNS = [
 ]
 
 
+def _campaign_display_label(row: pd.Series) -> str:
+    app = str(row.get("app_name") or "").strip()
+    obj = str(row.get("objective") or "").strip()
+    if app and obj:
+        return f"{app} ({obj})"
+    if app:
+        return app
+    return f"Campaign {int(row['campaign_id'])}"
+
+
+def _creative_display_label(row: pd.Series) -> str:
+    headline = row.get("headline")
+    if headline is not None and str(headline).strip():
+        t = str(headline).strip().replace("\n", " ")
+        return (t[:56] + "...") if len(t) > 56 else t
+    parts = [
+        str(x).strip()
+        for x in [row.get("app_name"), row.get("theme"), row.get("format")]
+        if x is not None and str(x).strip()
+    ]
+    if parts:
+        return " | ".join(parts)[:64]
+    return f"Creative {int(row['creative_id'])}"
+
+
+def _labeled_advertisers(advertisers: pd.DataFrame, ids: list[int]) -> list[dict[str, Any]]:
+    if not ids:
+        return []
+    sub = advertisers[advertisers["advertiser_id"].isin(ids)].sort_values("advertiser_id")
+    return [{"value": int(r["advertiser_id"]), "label": str(r["advertiser_name"])} for _, r in sub.iterrows()]
+
+
+def _labeled_campaigns(campaigns: pd.DataFrame, ids: list[int]) -> list[dict[str, Any]]:
+    if not ids:
+        return []
+    sub = campaigns[campaigns["campaign_id"].isin(ids)].sort_values("campaign_id")
+    return [{"value": int(r["campaign_id"]), "label": _campaign_display_label(r)} for _, r in sub.iterrows()]
+
+
+def _labeled_creatives(creatives: pd.DataFrame, ids: list[int]) -> list[dict[str, Any]]:
+    if not ids:
+        return []
+    sub = creatives[creatives["creative_id"].isin(ids)].sort_values("creative_id")
+    return [{"value": int(r["creative_id"]), "label": _creative_display_label(r)} for _, r in sub.iterrows()]
+
+
 def _safe_div(num: float, den: float) -> float | None:
     if den == 0 or pd.isna(den):
         return None
@@ -128,6 +174,7 @@ class PerformanceService:
     ]
 
     def __init__(self, store: DataStore) -> None:
+        self._store = store
         self._df = store.daily_enriched
 
     def filter_options(self, current_filters: dict[str, Any] | None = None) -> dict[str, list[Any]]:
@@ -178,6 +225,17 @@ class PerformanceService:
         if current_filters.get("campaign_ids"):
             cf2 = _apply_filters(base, narrow_filters)
             opts["creative_id"] = sorted(int(x) for x in cf2["creative_id"].dropna().unique())
+
+        adv_ids = opts.get("advertiser_id") or []
+        if isinstance(adv_ids, list) and adv_ids:
+            opts["advertiser_labeled"] = _labeled_advertisers(self._store.advertisers, [int(x) for x in adv_ids])
+        camp_ids = opts.get("campaign_id") or []
+        if isinstance(camp_ids, list) and camp_ids:
+            opts["campaign_labeled"] = _labeled_campaigns(self._store.campaigns, [int(x) for x in camp_ids])
+        cr_ids = opts.get("creative_id") or []
+        if isinstance(cr_ids, list) and cr_ids:
+            opts["creative_labeled"] = _labeled_creatives(self._store.creatives, [int(x) for x in cr_ids])
+
         return opts
 
     def query(self, body: dict[str, Any]) -> dict[str, Any]:
@@ -251,6 +309,19 @@ class PerformanceService:
             if sort_col not in agg.columns:
                 sort_col = "ctr"
             agg = agg.sort_values(sort_col, ascending=ascending, na_position="last")
-            result["leaderboard"] = agg.head(limit).to_dict(orient="records")
+            out_lb = agg.head(limit)
+            if by == "creative_id" and len(out_lb):
+                cr = self._store.creatives.set_index("creative_id")
+                labels: list[str] = []
+                for _, r in out_lb.iterrows():
+                    cid = int(r["creative_id"])
+                    if cid in cr.index:
+                        row = cr.loc[cid]
+                        labels.append(_creative_display_label(row if isinstance(row, pd.Series) else row.iloc[0]))
+                    else:
+                        labels.append(str(cid))
+                out_lb = out_lb.copy()
+                out_lb["creative_label"] = labels
+            result["leaderboard"] = out_lb.to_dict(orient="records")
 
         return result

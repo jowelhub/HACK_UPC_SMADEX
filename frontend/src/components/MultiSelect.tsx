@@ -1,19 +1,30 @@
+export type LabeledOption = { value: string | number; label: string }
+
 type Props = {
   label: string
-  options: (string | number)[]
+  options: (string | number)[] | LabeledOption[]
   value: (string | number)[]
   onChange: (v: (string | number)[]) => void
   className?: string
 }
 
+function optionValue(o: string | number | LabeledOption): string | number {
+  return typeof o === 'object' ? o.value : o
+}
+
+function optionLabel(o: string | number | LabeledOption): string {
+  return typeof o === 'object' ? o.label : String(o)
+}
+
 export function MultiSelect({ label, options, value, onChange, className }: Props) {
   const set = new Set(value.map(String))
-  const toggle = (o: string | number) => {
-    const k = String(o)
+  const toggle = (o: string | number | LabeledOption) => {
+    const v = optionValue(o)
+    const k = String(v)
     const next = new Set(value.map(String))
     if (next.has(k)) next.delete(k)
     else next.add(k)
-    const ordered = options.filter((x) => next.has(String(x)))
+    const ordered = options.map(optionValue).filter((x) => next.has(String(x)))
     onChange(ordered)
   }
 
@@ -26,19 +37,22 @@ export function MultiSelect({ label, options, value, onChange, className }: Prop
         ) : (
           <div className="flex flex-wrap gap-1.5">
             {options.map((o) => {
-              const active = set.has(String(o))
+              const v = optionValue(o)
+              const lbl = optionLabel(o)
+              const active = set.has(String(v))
               return (
                 <button
                   type="button"
-                  key={String(o)}
+                  key={String(v)}
+                  title={lbl}
                   onClick={() => toggle(o)}
-                  className={`rounded-md px-2 py-0.5 text-xs font-medium transition ${
+                  className={`max-w-[min(100%,220px)] truncate rounded-md px-2 py-0.5 text-left text-xs font-medium transition ${
                     active
                       ? 'bg-accent/20 text-accent ring-1 ring-accent/40'
                       : 'bg-slate-800/80 text-slate-300 hover:bg-slate-700'
                   }`}
                 >
-                  {String(o)}
+                  {lbl}
                 </button>
               )
             })}
