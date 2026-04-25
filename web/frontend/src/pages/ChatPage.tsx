@@ -53,8 +53,6 @@ export function ChatPage() {
   const [busy, setBusy] = useState(false)
   /** When true, new tokens scroll the thread to the bottom; scrolling up clears this. */
   const [pinnedToBottom, setPinnedToBottom] = useState(true)
-  /** Global visibility for model thinking stream (thoughts still accumulate when off). */
-  const [showThinking, setShowThinking] = useState(false)
 
   const bottom = useRef<HTMLDivElement | null>(null)
   const scrollElRef = useRef<HTMLDivElement | null>(null)
@@ -69,7 +67,7 @@ export function ChatPage() {
   useLayoutEffect(() => {
     if (!pinnedToBottom) return
     bottom.current?.scrollIntoView({ block: 'end', behavior: busy ? 'auto' : 'smooth' })
-  }, [rows, pending, busy, pinnedToBottom, showThinking])
+  }, [rows, pending, busy, pinnedToBottom])
 
   const send = useCallback(async () => {
     const t = input.trim()
@@ -217,15 +215,6 @@ export function ChatPage() {
             getDatabaseSchema
           </code>
         </p>
-        <label className="mt-3 flex cursor-pointer items-center gap-2 text-xs text-stone-600 sm:text-sm">
-          <input
-            type="checkbox"
-            className="h-3.5 w-3.5 rounded border-stone-300 text-brand-600 focus:ring-brand/30"
-            checked={showThinking}
-            onChange={(e) => setShowThinking(e.target.checked)}
-          />
-          <span>Show model thinking</span>
-        </label>
       </header>
 
       {error ? (
@@ -277,7 +266,7 @@ export function ChatPage() {
                 ) : (
                   <div className="min-w-0 pl-0 sm:pl-0.5">
                     <div className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-stone-400">Assistant</div>
-                    {showThinking && m.thought ? (
+                    {m.thought ? (
                       <details
                         className="mb-2 rounded-xl border border-stone-200/60 bg-stone-50/80 open:bg-stone-50/90"
                         open={!m.text}
@@ -302,8 +291,8 @@ export function ChatPage() {
             {pending ? (
               <div className="min-w-0 pl-0.5 sm:pl-0.5">
                 <div className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-stone-400">Assistant</div>
-                {showThinking && pending.thought ? (
-                  <details open className="mb-2 rounded-xl border border-amber-200/40 bg-amber-50/30">
+                {pending.thought ? (
+                  <details className="mb-2 rounded-xl border border-amber-200/40 bg-amber-50/30">
                     <summary className="cursor-pointer select-none px-3 py-2 text-xs font-medium text-amber-900/80">
                       Thinking
                     </summary>
@@ -317,7 +306,7 @@ export function ChatPage() {
                     <ChatMarkdown>{pending.text}</ChatMarkdown>
                   </div>
                 ) : null}
-                {busy && !pending.text && (!pending.thought || !showThinking) ? (
+                {busy && !pending.text && !pending.thought ? (
                   <p className="text-sm text-stone-500">…</p>
                 ) : null}
               </div>
