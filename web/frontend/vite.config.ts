@@ -6,7 +6,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      // AI agent (Vercel AI SDK) — run `cd web/ai-agent && npm start` on 3001 for local dev
+      // Analytics copilot (Google @google/genai) — `cd web/ai-agent && npm start` on 3001 for local dev
       '/api/agent': {
         target: 'http://127.0.0.1:3001',
         changeOrigin: true,

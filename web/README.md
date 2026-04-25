@@ -92,7 +92,7 @@ docker compose up --build
 - **`/api/fatigue/*`** — Creative IDs and **ML-only** CTR training / prediction (no rule-based degradation API).
 - **`/api/recommendations/*`** — Recommendation helpers.
 - **`/api/agent/sql`** (POST) — **Read-only** PostgreSQL for the **Analytics copilot** (internal; called by the `ai-agent` service). One `SELECT` / `WITH … SELECT` at a time, row cap, optional shared secret: `AGENT_SQL_TOKEN` on backend and `X-Agent-Token` on the request.
-- **Analytics copilot (UI: `/copilot`)** — Separate **Node** service `web/ai-agent/`: Vercel **AI SDK** + Google **Gemma 4** (or `CHAT_MODEL` override), streaming at **`/api/agent/chat`**, with a SQL tool that calls the backend **read-only** Postgres API. Nginx in the frontend container proxies `/api/agent/` to that service. Required env: **`GOOGLE_GENERATIVE_AI_API_KEY`**. Local Vite dev proxies `/api/agent` to port **3001** (run `cd web/ai-agent && npm install && npm start` while the API runs on 8000).
+- **Analytics copilot (UI: `/copilot`)** — Separate **Node** service `web/ai-agent/`: Google **`@google/genai`** (default **Gemma 4** `gemma-4-31b-it`, override with `CHAT_MODEL`). Server-Sent Events at **`/api/agent/chat`**: streaming text, optional “thought” parts, Google **code execution**, and custom tools **`runSQL`** (read-only SQL via FastAPI) and **`getDatabaseSchema`**. Nginx proxies `/api/agent/` to the copilot service. Required env: **`GOOGLE_GENERATIVE_AI_API_KEY`**. Local Vite dev proxies `/api/agent` to **3001** (`cd web/ai-agent && npm install && npm start` with the API on 8000).
 
 ---
 
