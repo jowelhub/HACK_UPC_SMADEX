@@ -42,37 +42,176 @@ const TS_RIGHT_METRICS = [
 
 type TsRightKey = (typeof TS_RIGHT_METRICS)[number]['key']
 
+type EntitySortKey =
+  | 'name'
+  | 'spend_usd'
+  | 'impressions'
+  | 'clicks'
+  | 'ctr'
+  | 'conversions'
+  | 'revenue_usd'
+  | 'cpa_usd'
+  | 'roas'
+  | 'cvr'
+  | 'ipm'
+
+function entityRowId(r: PerformanceEntityRow): string {
+  if (r.advertiser_id != null) return `a-${r.advertiser_id}`
+  if (r.campaign_id != null) return `c-${r.campaign_id}`
+  if (r.creative_id != null) return `cr-${r.creative_id}`
+  return r.label
+}
+
+function entitySortValue(r: PerformanceEntityRow, key: EntitySortKey): number | string | null {
+  switch (key) {
+    case 'name':
+      return r.label.toLowerCase()
+    case 'spend_usd':
+      return r.spend_usd
+    case 'impressions':
+      return r.impressions
+    case 'clicks':
+      return r.clicks
+    case 'ctr':
+      return r.ctr ?? null
+    case 'conversions':
+      return r.conversions
+    case 'revenue_usd':
+      return r.revenue_usd
+    case 'cpa_usd':
+      return r.cpa_usd ?? null
+    case 'roas':
+      return r.roas ?? null
+    case 'cvr':
+      return r.cvr ?? null
+    case 'ipm':
+      return r.ipm ?? null
+    default:
+      return null
+  }
+}
+
+/** Lower CPA / alphabetical name first when ascending; higher spend/ROAS first when descending. */
+function defaultSortDir(key: EntitySortKey): 'asc' | 'desc' {
+  if (key === 'cpa_usd' || key === 'name') return 'asc'
+  return 'desc'
+}
+
+function compareEntityRows(a: PerformanceEntityRow, b: PerformanceEntityRow, key: EntitySortKey, dir: 'asc' | 'desc'): number {
+  const va = entitySortValue(a, key)
+  const vb = entitySortValue(b, key)
+
+  if (va === null && vb === null) return 0
+  if (va === null) return 1
+  if (vb === null) return -1
+
+  const mul = dir === 'asc' ? 1 : -1
+
+  if (typeof va === 'string' && typeof vb === 'string') {
+    return va.localeCompare(vb, undefined, { sensitivity: 'base' }) * mul
+  }
+  const na = Number(va)
+  const nb = Number(vb)
+  if (Number.isNaN(na) && Number.isNaN(nb)) return 0
+  if (Number.isNaN(na)) return 1
+  if (Number.isNaN(nb)) return -1
+  return (na - nb) * mul
+}
+
+function SortTh({
+  label,
+  sortKey,
+  align,
+  current,
+  onPick,
+}: {
+  label: string
+  sortKey: EntitySortKey
+  align: 'left' | 'right'
+  current: { key: EntitySortKey; dir: 'asc' | 'desc' }
+  onPick: (key: EntitySortKey) => void
+}) {
+  const active = current.key === sortKey
+  const arrow = !active ? '' : current.dir === 'asc' ? ' ↑' : ' ↓'
+  return (
+    <th
+      className={`py-2 font-medium ${align === 'right' ? 'pr-2' : 'pr-3'} text-slate-500`}
+      aria-sort={active ? (current.dir === 'asc' ? 'ascending' : 'descending') : undefined}
+    >
+      <div className={align === 'right' ? 'flex justify-end' : ''}>
+        <button
+          type="button"
+          onClick={() => onPick(sortKey)}
+          className={`inline-flex max-w-full items-center gap-0.5 rounded px-0.5 hover:text-slate-300 focus-visible:outline focus-visible:ring-1 focus-visible:ring-accent ${align === 'right' ? 'text-right' : 'text-left'} ${active ? 'text-accent' : ''}`}
+        >
+          <span className="tabular-nums">
+            {label}
+            {arrow}
+          </span>
+        </button>
+      </div>
+    </th>
+  )
+}
+
 function TopEntityTable({ title, rows }: { title: string; rows: PerformanceEntityRow[] }) {
+  const [sort, setSort] = useState<{ key: EntitySortKey; dir: 'asc' | 'desc' }>({ key: 'spend_usd', dir: 'desc' })
+
+  useEffect(() => {
+    setSort({ key: 'spend_usd', dir: 'desc' })
+  }, [rows])
+
+  const sorted = useMemo(() => {
+    if (rows.length < 2) return rows
+    return [...rows].sort((a, b) => compareEntityRows(a, b, sort.key, sort.dir))
+  }, [rows, sort])
+
+  const onPick = (key: EntitySortKey) => {
+    setSort((s) => (s.key === key ? { key, dir: s.dir === 'asc' ? 'desc' : 'asc' } : { key, dir: defaultSortDir(key) }))
+  }
+
   if (rows.length < 2) return null
   return (
     <div className="min-w-0 rounded-xl border border-slate-800 bg-slate-900/40 p-4">
       <h3 className="font-display text-sm font-semibold text-white">{title}</h3>
-      <p className="mt-0.5 text-xs text-slate-500">Ranked by spend in the current date range and filters.</p>
+      <p className="mt-0.5 text-xs text-slate-500">
+        Same date range and filters as the summary. Click a column to sort; CPA and name default low→high / A→Z.
+      </p>
       <div className="mt-3 overflow-x-auto">
-        <table className="w-full min-w-[32rem] border-collapse text-left text-xs">
+        <table className="w-full min-w-[40rem] border-collapse text-left text-xs">
           <thead>
-            <tr className="border-b border-slate-800 text-slate-500">
-              <th className="py-2 pr-2 font-medium">#</th>
-              <th className="py-2 pr-3 font-medium">Name</th>
-              <th className="py-2 pr-2 text-right font-medium">Spend</th>
-              <th className="py-2 pr-2 text-right font-medium">CTR</th>
-              <th className="py-2 pr-2 text-right font-medium">Conv.</th>
-              <th className="py-2 pr-2 text-right font-medium">CPA</th>
-              <th className="py-2 text-right font-medium">ROAS</th>
+            <tr className="border-b border-slate-800">
+              <th className="py-2 pr-2 font-medium text-slate-500">#</th>
+              <SortTh label="Name" sortKey="name" align="left" current={sort} onPick={onPick} />
+              <SortTh label="Spend" sortKey="spend_usd" align="right" current={sort} onPick={onPick} />
+              <SortTh label="Impr." sortKey="impressions" align="right" current={sort} onPick={onPick} />
+              <SortTh label="Clicks" sortKey="clicks" align="right" current={sort} onPick={onPick} />
+              <SortTh label="CTR" sortKey="ctr" align="right" current={sort} onPick={onPick} />
+              <SortTh label="Conv." sortKey="conversions" align="right" current={sort} onPick={onPick} />
+              <SortTh label="Rev." sortKey="revenue_usd" align="right" current={sort} onPick={onPick} />
+              <SortTh label="CPA" sortKey="cpa_usd" align="right" current={sort} onPick={onPick} />
+              <SortTh label="ROAS" sortKey="roas" align="right" current={sort} onPick={onPick} />
+              <SortTh label="CVR" sortKey="cvr" align="right" current={sort} onPick={onPick} />
+              <SortTh label="IPM" sortKey="ipm" align="right" current={sort} onPick={onPick} />
             </tr>
           </thead>
           <tbody className="text-slate-300">
-            {rows.map((r, i) => (
-              <tr key={`${r.label}-${i}`} className="border-b border-slate-800/60 last:border-0">
+            {sorted.map((r, i) => (
+              <tr key={entityRowId(r)} className="border-b border-slate-800/60 last:border-0">
                 <td className="py-2 pr-2 text-slate-500">{i + 1}</td>
-                <td className="max-w-[14rem] truncate py-2 pr-3" title={r.label}>
+                <td className="max-w-[12rem] truncate py-2 pr-3" title={r.label}>
                   {r.label}
                 </td>
                 <td className="py-2 pr-2 text-right tabular-nums">{fmt(r.spend_usd, 0)}</td>
+                <td className="py-2 pr-2 text-right tabular-nums">{fmt(r.impressions, 0)}</td>
+                <td className="py-2 pr-2 text-right tabular-nums">{fmt(r.clicks, 0)}</td>
                 <td className="py-2 pr-2 text-right tabular-nums">{fmtPct(r.ctr)}</td>
                 <td className="py-2 pr-2 text-right tabular-nums">{fmt(r.conversions, 0)}</td>
+                <td className="py-2 pr-2 text-right tabular-nums">{fmt(r.revenue_usd, 0)}</td>
                 <td className="py-2 pr-2 text-right tabular-nums">{fmt(r.cpa_usd ?? undefined)}</td>
-                <td className="py-2 text-right tabular-nums">{fmt(r.roas ?? undefined)}</td>
+                <td className="py-2 pr-2 text-right tabular-nums">{fmt(r.roas ?? undefined)}</td>
+                <td className="py-2 pr-2 text-right tabular-nums">{fmtPct(r.cvr)}</td>
+                <td className="py-2 text-right tabular-nums">{fmt(r.ipm ?? undefined, 3)}</td>
               </tr>
             ))}
           </tbody>
