@@ -1,6 +1,6 @@
 # Smadex Creative Intelligence (HackUPC) — Project context
 
-Use this file as **persistent context** for LLMs, teammates, or future you. It explains the **business domain**, the **hackathon goal**, how **datasets relate**, and **every column** in the CSVs (verified against `data/` headers and `data/data_dictionary.csv`).
+Use this file as **persistent context** for LLMs, teammates, or future you. It explains the **business domain**, the **hackathon goal**, how **datasets relate**, and **every column** in the CSVs (verified against `data_science/data/` headers and `data_science/data/data_dictionary.csv`).
 
 ---
 
@@ -71,7 +71,7 @@ Build a product-style demo that helps a marketer answer:
 
 ## 4. Dataset inventory (sizes and roles)
 
-From `data/README.md` (canonical counts):
+From `data_science/data/README.md` (canonical counts):
 
 | Entity | Count |
 |--------|------:|
@@ -106,7 +106,7 @@ advertisers.csv
 - `creative_summary.csv` = one row per creative: lifetime totals, decay features, **synthetic labels** (`creative_status`, `fatigue_day`, `perf_score`), plus creative metadata columns mirrored from `creatives.csv`.
 - `campaign_summary.csv` = one row per campaign: lifetime totals + campaign metadata.
 
-**Authoritative column gloss:** `data/data_dictionary.csv` (machine-readable). The sections below match **actual CSV headers** in this repo.
+**Authoritative column gloss:** `data_science/data/data_dictionary.csv` (machine-readable). The sections below match **actual CSV headers** in this repo.
 
 ---
 
@@ -286,7 +286,7 @@ Row-wise mapping of `(file_name, column_name, data_type, description)`. Treat it
 
 ## 7. Known quirks (do not get surprised)
 
-From `data/README.md` and dataset design:
+From `data_science/data/README.md` and dataset design:
 
 1. **`fatigue_day` only exists for `creative_status == fatigued`**. Other statuses leave it blank by construction.
 2. **Uniform portfolio sizes** make “who is biggest” questions meaningless; compare KPIs and creative features.
@@ -299,30 +299,47 @@ From `data/README.md` and dataset design:
 
 Layout:
 
-- `data/` — CSVs (and optionally `assets/` for PNGs referenced by `asset_file`).
-- `backend/` — FastAPI + pandas: `/api/performance/*`, `/api/fatigue/*`, `/api/recommendations/*`.
-- `frontend/` — React + Vite UI: Performance, Fatigue, Recommendations routes.
-- `docker-compose.yml` — Run full stack in containers.
+- **`data_science/`** — CSVs under `data_science/data/` (and `assets/`), plus notebooks under `data_science/notebooks/`. Use this tree for analysis and experiments **without** running the web stack.
+- **`web/`** — Production-style stack: `web/backend/` (FastAPI: `/api/performance/*`, `/api/fatigue/*`, `/api/recommendations/*`), `web/frontend/` (React + Vite UI), `web/docker-compose.yml`, and `web/db/schema.sql` (PostgreSQL DDL).
 
-**Environment:** backend reads CSVs from `SMADEX_DATA_DIR` (default in code: repo `data/`). Docker Compose mounts `./data` to `/data` and sets `SMADEX_DATA_DIR=/data`.
+**Web API data source**
 
-**Run locally (typical)**
+The API **always** uses PostgreSQL via **`DATABASE_URL`**. It does not read CSV files at request time. CSVs in `data_science/data/` are the **bulk seed** source when the fact table is empty (see below).
+
+**Run locally (API + UI against Postgres)**
 
 ```bash
-# Terminal A
-cd backend && pip install -r requirements.txt && uvicorn main:app --reload --port 8000
+# Terminal A — Postgres must already exist and be seeded (see bootstrap below)
+cd web/backend && pip install -r requirements.txt && uvicorn main:app --reload --port 8000
 
 # Terminal B
-cd frontend && npm install && npm run dev
+cd web/frontend && npm install && npm run dev
 ```
 
-**Run with Docker**
+**Seed Postgres from CSV (local, without full Docker stack)**
+
+From the repo root, with a venv that has `web/backend` dependencies installed:
 
 ```bash
-docker compose up --build
-# UI: http://localhost:8080  (nginx proxies /api to backend)
-# API direct: http://localhost:8000
+export DATABASE_URL=postgresql+psycopg2://USER:PASS@localhost:5432/smadex
+export IMPORT_DATA_DIR=/absolute/path/to/HACK_UPC_SMADEX/data_science/data
+python web/backend/scripts/bootstrap_pg_from_csv.py
 ```
+
+If `IMPORT_DATA_DIR` is unset, the script defaults to `data_science/data/` relative to the repository root. It applies `web/db/schema.sql` and loads rows **only** when `creative_daily_country_os_stats` is empty.
+
+**Run with Docker (Postgres + API + UI)**
+
+```bash
+cd web && docker compose up --build
+# UI:  http://localhost:8080  (nginx proxies /api to backend)
+# API: http://localhost:8000
+# Postgres: localhost:5432  user/password/db: smadex / smadex / smadex
+```
+
+Compose mounts `../data_science/data` read-only at **`/import`** on the backend. On each backend start, `scripts.ensure_db_seeded` runs: if core tables are missing it applies `web/db/schema.sql`; if **`creative_daily_country_os_stats` has rows**, CSV import is skipped; if it is **empty**, tables are truncated and CSVs are loaded from `/import`.
+
+**Reset the database** (force a full re-seed on next start): `cd web && docker compose down -v` then `up` again (removes the named volume `smadex_pgdata`).
 
 ---
 

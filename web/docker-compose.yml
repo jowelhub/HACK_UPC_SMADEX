@@ -1,0 +1,59 @@
+# Web stack (from this `web/` directory):
+#   cd web && docker compose up --build
+#
+# Postgres holds all API data. If the fact table is empty, the backend entrypoint
+# loads CSVs from ../data_science/data (mounted read-only at /import).
+#
+# URLs: UI http://localhost:8080 | API http://localhost:8000 | Postgres localhost:5432
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: smadex
+      POSTGRES_PASSWORD: smadex
+      POSTGRES_DB: smadex
+    ports:
+      - "5432:5432"
+    volumes:
+      - smadex_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U smadex -d smadex"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      DATABASE_URL: postgresql+psycopg2://smadex:smadex@postgres:5432/smadex
+      IMPORT_DATA_DIR: /import
+    volumes:
+      - ../data_science/data:/import:ro
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health')"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 120s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+
+volumes:
+  smadex_pgdata:
