@@ -1,3 +1,3 @@
-/** Injected into the getDatabaseSchema tool (Postgres, matches web/db/schema.sql + joins). */
+/** Compact schema description for the SQL agent (Postgres public). */
 export declare const COMPACT_DB_SCHEMA: string;
 //# sourceMappingURL=schemaText.d.ts.map

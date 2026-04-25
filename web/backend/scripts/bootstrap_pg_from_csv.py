@@ -2,7 +2,8 @@
 """Load CSVs from IMPORT_DATA_DIR into PostgreSQL (DATABASE_URL).
 
 Applies web/db/schema.sql, then either full seed (when fact table is empty) or
-backfill of empty summary/dictionary tables. Table names match CSV stems.
+backfill of empty dimension tables. Table names match CSV stems (merged CSVs use
+logical table names campaigns / creatives).
 """
 
 from __future__ import annotations
@@ -16,18 +17,14 @@ from sqlalchemy import create_engine, text
 
 SEED_TABLE_ORDER: tuple[tuple[str, str], ...] = (
     ("advertisers", "advertisers.csv"),
-    ("campaigns", "campaigns.csv"),
-    ("creatives", "creatives.csv"),
-    ("campaign_summary", "campaign_summary.csv"),
-    ("creative_summary", "creative_summary.csv"),
-    ("advertiser_campaign_rankings", "advertiser_campaign_rankings.csv"),
+    ("campaigns", "campaigns_merged.csv"),
+    ("creatives", "creative_merged.csv"),
     ("creative_daily_country_os_stats", "creative_daily_country_os_stats.csv"),
 )
 
 BACKFILL_TABLE_ORDER: tuple[tuple[str, str], ...] = (
-    ("campaign_summary", "campaign_summary.csv"),
-    ("creative_summary", "creative_summary.csv"),
-    ("advertiser_campaign_rankings", "advertiser_campaign_rankings.csv"),
+    ("campaigns", "campaigns_merged.csv"),
+    ("creatives", "creative_merged.csv"),
 )
 
 
@@ -47,6 +44,13 @@ def _web_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 
+def _prepare_creative_merged_df(df: pd.DataFrame) -> pd.DataFrame:
+    df = df.copy()
+    df["creative_launch_date"] = pd.to_datetime(df["creative_launch_date"])
+    df["fatigue_day"] = df["fatigue_day"].astype("Int64")
+    return df
+
+
 def _load_table(engine, data_dir: Path, table: str, fname: str) -> int:
     path = data_dir / fname
     if not path.is_file():
@@ -55,12 +59,11 @@ def _load_table(engine, data_dir: Path, table: str, fname: str) -> int:
     df = pd.read_csv(path)
     if "date" in df.columns and table == "creative_daily_country_os_stats":
         df["date"] = pd.to_datetime(df["date"])
-    if table in ("campaigns", "campaign_summary"):
+    if table == "campaigns":
         df["start_date"] = pd.to_datetime(df["start_date"])
         df["end_date"] = pd.to_datetime(df["end_date"])
-    if table == "creative_summary":
-        df["creative_launch_date"] = pd.to_datetime(df["creative_launch_date"])
-        df["fatigue_day"] = df["fatigue_day"].astype("Int64")
+    if table == "creatives":
+        df = _prepare_creative_merged_df(df)
     elif "creative_launch_date" in df.columns:
         df["creative_launch_date"] = pd.to_datetime(df["creative_launch_date"])
     rows = len(df)

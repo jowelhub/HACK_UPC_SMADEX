@@ -278,10 +278,6 @@ def _build_hierarchy(store: DataStore) -> list[dict[str, Any]]:
     adv = store.advertisers.sort_values("advertiser_id")
     camps = store.campaigns
     crs = store.creatives
-    rk = getattr(store, "campaign_rankings", pd.DataFrame())
-    cs = getattr(store, "creative_summary", pd.DataFrame())
-    rk_by_cid = rk.set_index("campaign_id") if len(rk) and "campaign_id" in rk.columns else None
-    cs_by_crid = cs.set_index("creative_id") if len(cs) and "creative_id" in cs.columns else None
 
     out: list[dict[str, Any]] = []
     used_slugs: set[str] = set()
@@ -315,44 +311,27 @@ def _build_hierarchy(store: DataStore) -> list[dict[str, Any]]:
                     af_s = None
                 else:
                     af_s = str(af).strip() or None
+                st_raw = cr.get("creative_status")
+                st = str(st_raw).strip() if st_raw is not None and pd.notna(st_raw) else ""
+                fd = cr.get("fatigue_day")
+                ps = cr.get("perf_score")
                 cr_entry: dict[str, Any] = {
                     "creative_id": crid,
                     "slug": crslug,
                     "label": crlabel,
                     "asset_file": af_s,
-                    "creative_status": None,
-                    "fatigue_day": None,
-                    "perf_score": None,
-                    "is_fatigued": False,
+                    "creative_status": st or None,
+                    "fatigue_day": int(fd) if fd is not None and pd.notna(fd) else None,
+                    "perf_score": float(ps) if ps is not None and pd.notna(ps) else None,
+                    "is_fatigued": st == "fatigued",
                 }
-                if cs_by_crid is not None:
-                    srow = _series_for_id(cs_by_crid, crid)
-                    if srow is not None:
-                        st = str(srow.get("creative_status") or "").strip()
-                        cr_entry["creative_status"] = st or None
-                        fd = srow.get("fatigue_day")
-                        cr_entry["fatigue_day"] = int(fd) if pd.notna(fd) else None
-                        ps = srow.get("perf_score")
-                        cr_entry["perf_score"] = float(ps) if pd.notna(ps) else None
-                        cr_entry["is_fatigued"] = st == "fatigued"
                 crlist.append(cr_entry)
             camp_entry: dict[str, Any] = {
                 "campaign_id": cid,
                 "slug": cslug,
                 "label": clabel,
                 "creatives": crlist,
-                "portfolio_rank": None,
-                "portfolio_composite_score": None,
-                "portfolio_health_score": None,
-                "n_healthy_creatives": None,
             }
-            if rk_by_cid is not None:
-                rrow = _series_for_id(rk_by_cid, cid)
-                if rrow is not None:
-                    camp_entry["portfolio_rank"] = int(rrow["rank_within_advertiser"])
-                    camp_entry["portfolio_composite_score"] = float(rrow["composite_score"])
-                    camp_entry["portfolio_health_score"] = float(rrow["health_score"])
-                    camp_entry["n_healthy_creatives"] = int(rrow["n_healthy"])
             camp_list.append(camp_entry)
         out.append(
             {

@@ -14,22 +14,17 @@ from pathlib import Path
 import pandas as pd
 from sqlalchemy import create_engine, text
 
-# (table_name, csv_filename) — same stem as data_science/data/*.csv
+# (table_name, csv_filename) — load order respects FKs
 SEED_TABLE_ORDER: tuple[tuple[str, str], ...] = (
     ("advertisers", "advertisers.csv"),
-    ("campaigns", "campaigns.csv"),
-    ("creatives", "creatives.csv"),
-    ("campaign_summary", "campaign_summary.csv"),
-    ("creative_summary", "creative_summary.csv"),
-    ("advertiser_campaign_rankings", "advertiser_campaign_rankings.csv"),
+    ("campaigns", "campaigns_merged.csv"),
+    ("creatives", "creative_merged.csv"),
     ("creative_daily_country_os_stats", "creative_daily_country_os_stats.csv"),
 )
 
-# Tables appended when the fact table already has rows but these were added later / empty.
 BACKFILL_TABLE_ORDER: tuple[tuple[str, str], ...] = (
-    ("campaign_summary", "campaign_summary.csv"),
-    ("creative_summary", "creative_summary.csv"),
-    ("advertiser_campaign_rankings", "advertiser_campaign_rankings.csv"),
+    ("campaigns", "campaigns_merged.csv"),
+    ("creatives", "creative_merged.csv"),
 )
 
 
@@ -73,21 +68,57 @@ def _table_exists(conn, name: str) -> bool:
     return bool(conn.execute(q, {"n": name}).scalar_one())
 
 
+def _column_exists(conn, table: str, column: str) -> bool:
+    q = text(
+        "SELECT EXISTS (SELECT 1 FROM information_schema.columns "
+        "WHERE table_schema = 'public' AND table_name = :t AND column_name = :c)"
+    )
+    return bool(conn.execute(q, {"t": table, "c": column}).scalar_one())
+
+
 def _daily_count(conn) -> int:
     return int(conn.execute(text("SELECT COUNT(*) FROM creative_daily_country_os_stats")).scalar_one())
 
 
+def _legacy_split_schema(conn) -> bool:
+    """True if DB was created before merged CSV schema (separate summary / rankings tables)."""
+    if _table_exists(conn, "advertiser_campaign_rankings"):
+        return True
+    if _table_exists(conn, "campaign_summary"):
+        return True
+    if _table_exists(conn, "creative_summary"):
+        return True
+    if _table_exists(conn, "campaigns") and not _column_exists(conn, "campaigns", "total_spend_usd"):
+        return True
+    if _table_exists(conn, "creatives") and not _column_exists(conn, "creatives", "creative_status"):
+        return True
+    return False
+
+
+def _drop_seed_tables_for_rebuild(conn) -> None:
+    """Drop all seeded public tables except none — order respects FKs."""
+    for t in (
+        "creative_daily_country_os_stats",
+        "advertiser_campaign_rankings",
+        "creative_summary",
+        "campaign_summary",
+        "creatives",
+        "campaigns",
+        "advertisers",
+    ):
+        conn.execute(text(f"DROP TABLE IF EXISTS {t} CASCADE"))
+
+
 def _truncate_all(engine) -> None:
     stmt = text(
-        "TRUNCATE TABLE creative_daily_country_os_stats, creative_summary, "
-        "advertiser_campaign_rankings, campaign_summary, creatives, campaigns, "
+        "TRUNCATE TABLE creative_daily_country_os_stats, creatives, campaigns, "
         "advertisers RESTART IDENTITY CASCADE"
     )
     with engine.begin() as conn:
         conn.execute(stmt)
 
 
-def _prepare_creative_summary_df(df: pd.DataFrame) -> pd.DataFrame:
+def _prepare_creative_merged_df(df: pd.DataFrame) -> pd.DataFrame:
     df = df.copy()
     df["creative_launch_date"] = pd.to_datetime(df["creative_launch_date"])
     df["fatigue_day"] = df["fatigue_day"].astype("Int64")
@@ -101,11 +132,11 @@ def _load_one_table(engine, data_dir: Path, table: str, fname: str) -> int:
     df = pd.read_csv(path)
     if "date" in df.columns and table == "creative_daily_country_os_stats":
         df["date"] = pd.to_datetime(df["date"])
-    if table in ("campaigns", "campaign_summary"):
+    if table == "campaigns":
         df["start_date"] = pd.to_datetime(df["start_date"])
         df["end_date"] = pd.to_datetime(df["end_date"])
-    if table == "creative_summary":
-        df = _prepare_creative_summary_df(df)
+    if table == "creatives":
+        df = _prepare_creative_merged_df(df)
     elif "creative_launch_date" in df.columns:
         df["creative_launch_date"] = pd.to_datetime(df["creative_launch_date"])
     rows = len(df)
@@ -120,7 +151,7 @@ def _load_csv_tables(engine, data_dir: Path) -> None:
 
 
 def _backfill_missing_tables(engine, data_dir: Path) -> None:
-    """Append CSVs for dimension/summary tables when the fact table was seeded earlier."""
+    """Append CSVs for dimension tables when the fact table was seeded earlier."""
     for table, fname in BACKFILL_TABLE_ORDER:
         with engine.connect() as conn:
             if not _table_exists(conn, table):
@@ -155,6 +186,17 @@ def run() -> None:
     engine = create_engine(url, pool_pre_ping=True)
     _drop_legacy_data_dictionary(engine)
 
+    force_rebuild_schema = False
+    with engine.connect() as conn:
+        if _legacy_split_schema(conn):
+            print("[ensure_db_seeded] legacy split schema detected; rebuilding merged tables", flush=True)
+            force_rebuild_schema = True
+
+    if force_rebuild_schema:
+        with engine.begin() as conn:
+            _drop_seed_tables_for_rebuild(conn)
+        _apply_schema(engine, schema_file)
+
     with engine.connect() as conn:
         need_schema = not _all_seed_tables_exist(conn)
 
@@ -165,12 +207,12 @@ def run() -> None:
     with engine.connect() as conn:
         n = _daily_count(conn)
 
-    if n > 0:
+    if n > 0 and not force_rebuild_schema:
         print(f"[ensure_db_seeded] creative_daily_country_os_stats has {n} rows; skip full import", flush=True)
         _backfill_missing_tables(engine, data_dir)
         return
 
-    print("[ensure_db_seeded] fact table empty; truncating (if any) and importing CSVs", flush=True)
+    print("[ensure_db_seeded] fact table empty or schema rebuilt; truncating (if any) and importing CSVs", flush=True)
     _truncate_all(engine)
     _load_csv_tables(engine, data_dir)
 

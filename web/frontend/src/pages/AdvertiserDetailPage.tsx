@@ -96,12 +96,6 @@ export function AdvertiserDetailPage() {
           {advertiser.campaigns.map((c) => (
             <Link key={c.campaign_id} to={pathCampaign(advertiser.slug, c.slug)} className={explorerUi.campaignNavButton}>
               <span className="block font-medium">{c.label}</span>
-              {c.portfolio_rank != null ? (
-                <span className="mt-0.5 block text-xs font-normal text-stone-500">
-                  Rank #{c.portfolio_rank}
-                  {c.portfolio_composite_score != null ? ` · composite ${c.portfolio_composite_score.toFixed(1)}` : ''}
-                </span>
-              ) : null}
             </Link>
           ))}
         </div>

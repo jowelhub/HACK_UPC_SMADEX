@@ -20,7 +20,7 @@ export type HierarchyCreative = {
   slug: string
   label: string
   asset_file: string | null
-  /** From `creative_summary.creative_status` when seeded. */
+  /** From merged `creatives.creative_status` when seeded. */
   creative_status?: string | null
   fatigue_day?: number | null
   perf_score?: number | null
@@ -32,11 +32,6 @@ export type HierarchyCampaign = {
   slug: string
   label: string
   creatives: HierarchyCreative[]
-  /** From `advertiser_campaign_rankings` (1 = best within advertiser). */
-  portfolio_rank?: number | null
-  portfolio_composite_score?: number | null
-  portfolio_health_score?: number | null
-  n_healthy_creatives?: number | null
 }
 export type HierarchyAdvertiser = {
   advertiser_id: number

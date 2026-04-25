@@ -76,17 +76,6 @@ export function CampaignDetailPage() {
           <BackNavLink to={pathAdvertiser(advertiser.slug)}>← {advertiser.label}</BackNavLink>
           <h1 className={explorerUi.title}>{campaign.label}</h1>
           <p className={explorerUi.subtitle}>Campaign #{campaign.campaign_id}</p>
-          {campaign.portfolio_rank != null ? (
-            <p className="mt-1 text-sm text-stone-600">
-              Portfolio rank #{campaign.portfolio_rank} within {advertiser.label}
-              {campaign.portfolio_composite_score != null
-                ? ` · composite ${campaign.portfolio_composite_score.toFixed(1)}`
-                : ''}
-              {campaign.portfolio_health_score != null
-                ? ` · health ${campaign.portfolio_health_score.toFixed(0)}% (${campaign.n_healthy_creatives ?? '—'}/6 creatives marked healthy in rankings)`
-                : ''}
-            </p>
-          ) : null}
         </div>
         <DateRangeFields dateRange={dateRange} dates={dates} onChange={setDates} />
       </div>
