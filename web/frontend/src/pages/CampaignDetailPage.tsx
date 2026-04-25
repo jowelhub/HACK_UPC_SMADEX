@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { useParams } from 'react-router-dom'
 import { BackNavLink } from '../components/BackNavLink'
 import { DateRangeFields } from '../components/DateRangeFields'
+import { CampaignCreativePcaSection } from '../components/CampaignCreativePcaSection'
 import { ExplorerCreativeCard } from '../components/ExplorerCreativeCard'
 import { LlmInsightPanel } from '../components/LlmInsightPanel'
 import { PerformanceResultPanels } from '../components/PerformanceResultPanels'
@@ -88,9 +89,11 @@ export function CampaignDetailPage() {
         <LlmInsightPanel context={insightContext} performanceError={err} />
       </div>
 
+      <CampaignCreativePcaSection campaignId={campaign.campaign_id} />
+
       <div>
         <h2 className={explorerUi.sectionTitle}>{PAGE_SECTION.creatives}</h2>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-3 sm:gap-4">
           {campaign.creatives.map((cr) => (
             <ExplorerCreativeCard
               key={cr.creative_id}

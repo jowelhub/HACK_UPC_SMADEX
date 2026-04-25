@@ -36,7 +36,7 @@ export function ExplorerCreativeCard({ to, label, creativeId, creativeStatus, is
           <img
             src={creativeAssetUrl(creativeId)}
             alt=""
-            className="max-h-full max-w-full object-contain"
+            className="block h-auto w-full object-contain max-h-[min(65vh,36rem)]"
             loading="lazy"
           />
         </div>

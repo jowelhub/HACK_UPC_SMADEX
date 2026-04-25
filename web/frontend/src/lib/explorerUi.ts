@@ -11,9 +11,10 @@ export const explorerUi = {
   campaignNavButton:
     'rounded-lg border border-stone-200 bg-white px-4 py-3 text-left text-sm font-medium text-stone-800 shadow-sm transition hover:border-brand hover:bg-brand-50/50 hover:text-brand',
   creativeTile:
-    'group flex flex-col rounded-lg border border-stone-200 bg-white p-3 text-center shadow-sm transition hover:border-brand hover:shadow-md',
+    'group flex min-w-0 flex-col rounded-lg border border-stone-200 bg-white p-2.5 text-center shadow-sm transition hover:border-brand hover:shadow-md sm:p-3',
+  /** Full width of grid cell; height follows image (no forced square). */
   creativeTileImageWrap:
-    'mx-auto flex aspect-square w-full max-w-[8rem] items-center justify-center overflow-hidden rounded-md bg-stone-50',
+    'relative w-full min-h-0 overflow-hidden rounded-md bg-stone-50',
   creativeTileLabel: 'mt-2 line-clamp-3 text-xs font-medium leading-snug text-stone-800 group-hover:text-brand',
   mutedMessage: 'text-sm text-stone-500',
   errorMessage: 'text-sm text-red-600',

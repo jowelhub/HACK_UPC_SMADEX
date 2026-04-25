@@ -8,6 +8,7 @@ from typing import Any
 
 import pandas as pd
 
+from modules.performance.creative_pca import campaign_creative_pca as _campaign_creative_pca
 from shared.store import DataStore
 
 # Extra dimensions allowed on POST /api/performance/query via ``breakdowns`` (multi slice).
@@ -584,3 +585,6 @@ class PerformanceService:
             result["leaderboard"] = out_lb.to_dict(orient="records")
 
         return result
+
+    def campaign_creative_pca(self, campaign_id: int) -> dict[str, Any]:
+        return _campaign_creative_pca(self._store.creatives, campaign_id)

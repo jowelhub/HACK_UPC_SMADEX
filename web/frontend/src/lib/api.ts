@@ -54,6 +54,26 @@ export function creativeAssetUrl(creativeId: number) {
   return apiPaths.creativeAsset(creativeId)
 }
 
+export type CampaignCreativePcaPoint = {
+  creative_id: number
+  pc1: number
+  pc2: number
+  label: string
+  creative_status: string | null
+}
+
+export type CampaignCreativePcaResponse = {
+  explained_variance_ratio: number[]
+  n_features_used?: number
+  points: CampaignCreativePcaPoint[]
+}
+
+export async function fetchCampaignCreativePca(campaignId: number): Promise<CampaignCreativePcaResponse> {
+  const r = await fetch(apiPaths.campaignCreativePca(campaignId))
+  if (!r.ok) throw new Error(await r.text())
+  return r.json() as Promise<CampaignCreativePcaResponse>
+}
+
 export async function fetchPerformanceQuery(payload: {
   filters: PerformanceFilters
   timeseries_grain?: string | null
