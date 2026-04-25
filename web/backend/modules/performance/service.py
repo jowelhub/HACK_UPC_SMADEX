@@ -397,7 +397,10 @@ class PerformanceService:
                 video_completions=("video_completions", "sum"),
             )
             g2["ctr"] = g2.apply(lambda r: _safe_div(r["clicks"], r["impressions"]), axis=1)
+            g2["cvr"] = g2.apply(lambda r: _safe_div(r["conversions"], r["clicks"]), axis=1)
+            g2["ipm"] = g2.apply(lambda r: _safe_div(1000.0 * r["conversions"], r["impressions"]), axis=1)
             g2["cpa_usd"] = g2.apply(lambda r: _safe_div(r["spend_usd"], r["conversions"]), axis=1)
+            g2["roas"] = g2.apply(lambda r: _safe_div(r["revenue_usd"], r["spend_usd"]), axis=1)
             g2["viewability_rate"] = g2.apply(lambda r: _safe_div(r["viewable_impressions"], r["impressions"]), axis=1)
             if breakdown == "campaign_id":
                 cmap = self._store.campaigns.set_index("campaign_id")

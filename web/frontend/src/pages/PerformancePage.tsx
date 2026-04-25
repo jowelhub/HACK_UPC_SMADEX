@@ -52,6 +52,55 @@ function fmtPct(n: number | null | undefined) {
   return `${(n * 100).toFixed(2)}%`
 }
 
+const METRIC_OPTIONS = [
+  { key: 'ctr', label: 'CTR' },
+  { key: 'cvr', label: 'CVR' },
+  { key: 'viewability_rate', label: 'Viewability' },
+  { key: 'spend_usd', label: 'Spend (USD)' },
+  { key: 'impressions', label: 'Impressions' },
+  { key: 'viewable_impressions', label: 'Viewable imps' },
+  { key: 'clicks', label: 'Clicks' },
+  { key: 'conversions', label: 'Conversions' },
+  { key: 'revenue_usd', label: 'Revenue (USD)' },
+  { key: 'video_completions', label: 'Video completions' },
+  { key: 'cpa_usd', label: 'CPA (USD)' },
+  { key: 'ipm', label: 'IPM' },
+  { key: 'roas', label: 'ROAS' },
+] as const
+
+type MetricKey = (typeof METRIC_OPTIONS)[number]['key']
+
+function metricLabel(key: MetricKey): string {
+  return METRIC_OPTIONS.find((m) => m.key === key)?.label ?? key
+}
+
+function isPct01Metric(key: MetricKey): boolean {
+  return key === 'ctr' || key === 'cvr' || key === 'viewability_rate'
+}
+
+function isUsdMetric(key: MetricKey): boolean {
+  return key === 'spend_usd' || key === 'revenue_usd' || key === 'cpa_usd'
+}
+
+function formatMetricValue(key: MetricKey, v: number): string {
+  if (Number.isNaN(v)) return '-'
+  if (isPct01Metric(key)) return fmtPct(v)
+  if (isUsdMetric(key)) return `$${fmt(v, v >= 100 ? 0 : 2)}`
+  if (key === 'roas' || key === 'ipm') return fmt(v, 3)
+  return fmt(v, 0)
+}
+
+function formatMetricTick(key: MetricKey, v: number): string {
+  if (Number.isNaN(v)) return ''
+  if (isPct01Metric(key)) return `${(v * 100).toFixed(1)}%`
+  if (isUsdMetric(key) && Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`
+  if (isUsdMetric(key) && Math.abs(v) >= 1000) return `${(v / 1000).toFixed(0)}k`
+  if (Math.abs(v) >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`
+  if (Math.abs(v) >= 10000) return `${(v / 1000).toFixed(0)}k`
+  if (key === 'roas' || key === 'ipm') return fmt(v, 2)
+  return fmt(v, 0)
+}
+
 function filtersForScope(scope: PerformanceScope, dates: { from: string; to: string }): PerformanceFilters {
   const base: PerformanceFilters = { date_from: dates.from, date_to: dates.to }
   if (scope.kind === 'all') return base
@@ -106,6 +155,9 @@ export function PerformancePage() {
     typeof window !== 'undefined' ? window.matchMedia('(min-width: 1024px)').matches : false,
   )
   const [mobileTab, setMobileTab] = useState<MobilePerfTab>('selection')
+  const [tsLeft, setTsLeft] = useState<MetricKey>('ctr')
+  const [tsRight, setTsRight] = useState<MetricKey>('spend_usd')
+  const [barMetric, setBarMetric] = useState<MetricKey>('spend_usd')
   const asideWRef = useRef(asideW)
   const dragRef = useRef<{ pageX: number; startW: number } | null>(null)
   const mainScrollRef = useRef<HTMLElement>(null)
@@ -199,14 +251,18 @@ export function PerformancePage() {
   const breakdownRaw = data?.breakdown ?? []
 
   const barData = useMemo(() => {
-    const rows = [...breakdownRaw] as Array<Record<string, unknown> & { label?: string; spend_usd?: number }>
-    rows.sort((a, b) => Number(b.spend_usd ?? 0) - Number(a.spend_usd ?? 0))
+    const rows = [...breakdownRaw] as Array<Record<string, unknown> & { label?: string }>
+    const k = barMetric
+    rows.sort((a, b) => Number(b[k] ?? 0) - Number(a[k] ?? 0))
     return rows.slice(0, 12).map((r) => ({
       name: String(r.label ?? r.campaign_id ?? r.creative_id ?? '?').slice(0, 42),
-      spend: Number(r.spend_usd ?? 0),
-      ctr: r.ctr != null ? Number(r.ctr) * 100 : null,
+      v: Number(r[k] ?? 0),
     }))
-  }, [breakdownRaw])
+  }, [breakdownRaw, barMetric])
+
+  const otherMetric = (exclude: MetricKey): MetricKey => {
+    return METRIC_OPTIONS.find((m) => m.key !== exclude)?.key ?? 'spend_usd'
+  }
 
   const chartTooltip = {
     contentStyle: {
@@ -465,8 +521,48 @@ export function PerformancePage() {
             ) : null}
 
             <div className="surface-panel mb-5">
-              <h3 className="text-sm font-semibold text-stone-900">CTR & spend</h3>
-              <div className="mt-3 h-64 sm:h-72">
+              <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+                <h3 className="text-sm font-semibold text-stone-900">Daily series</h3>
+                <div className="flex flex-wrap gap-2">
+                  <label className="flex items-center gap-1 text-xs text-stone-600">
+                    <span className="text-stone-500">Y1</span>
+                    <select
+                      className="input py-1 text-xs"
+                      value={tsLeft}
+                      onChange={(e) => {
+                        const v = e.target.value as MetricKey
+                        setTsLeft(v)
+                        setTsRight((r) => (r === v ? otherMetric(v) : r))
+                      }}
+                    >
+                      {METRIC_OPTIONS.map((m) => (
+                        <option key={m.key} value={m.key} disabled={m.key === tsRight}>
+                          {m.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex items-center gap-1 text-xs text-stone-600">
+                    <span className="text-stone-500">Y2</span>
+                    <select
+                      className="input py-1 text-xs"
+                      value={tsRight}
+                      onChange={(e) => {
+                        const v = e.target.value as MetricKey
+                        setTsRight(v)
+                        setTsLeft((l) => (l === v ? otherMetric(v) : l))
+                      }}
+                    >
+                      {METRIC_OPTIONS.map((m) => (
+                        <option key={m.key} value={m.key} disabled={m.key === tsLeft}>
+                          {m.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+              </div>
+              <div className="mt-1 h-64 sm:h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={ts}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
@@ -474,9 +570,14 @@ export function PerformancePage() {
                     <YAxis
                       yAxisId="l"
                       tick={{ fill: '#78716c', fontSize: 11 }}
-                      tickFormatter={(v) => `${(Number(v) * 100).toFixed(2)}%`}
+                      tickFormatter={(v) => formatMetricTick(tsLeft, Number(v))}
                     />
-                    <YAxis yAxisId="r" orientation="right" tick={{ fill: '#78716c', fontSize: 11 }} />
+                    <YAxis
+                      yAxisId="r"
+                      orientation="right"
+                      tick={{ fill: '#78716c', fontSize: 11 }}
+                      tickFormatter={(v) => formatMetricTick(tsRight, Number(v))}
+                    />
                     <Tooltip
                       {...chartTooltip}
                       formatter={(value, name) => {
@@ -484,17 +585,28 @@ export function PerformancePage() {
                         if (value === undefined || value === null) return ['-', label]
                         const num = typeof value === 'number' ? value : Number(value)
                         if (Number.isNaN(num)) return ['-', label]
-                        if (label === 'CTR') return [fmtPct(num), label]
-                        return [fmt(num, 0), label]
+                        const ll = metricLabel(tsLeft)
+                        const rr = metricLabel(tsRight)
+                        if (label === ll) return [formatMetricValue(tsLeft, num), ll]
+                        if (label === rr) return [formatMetricValue(tsRight, num), rr]
+                        return [formatMetricValue(tsLeft, num), label]
                       }}
                     />
                     <Legend />
-                    <Line yAxisId="l" type="monotone" dataKey="ctr" name="CTR" stroke="#7c3aad" dot={false} strokeWidth={2} />
+                    <Line
+                      yAxisId="l"
+                      type="monotone"
+                      dataKey={tsLeft}
+                      name={metricLabel(tsLeft)}
+                      stroke="#7c3aad"
+                      dot={false}
+                      strokeWidth={2}
+                    />
                     <Line
                       yAxisId="r"
                       type="monotone"
-                      dataKey="spend_usd"
-                      name="Spend (USD)"
+                      dataKey={tsRight}
+                      name={metricLabel(tsRight)}
                       stroke="#5e2d87"
                       dot={false}
                       strokeWidth={2}
@@ -506,14 +618,34 @@ export function PerformancePage() {
 
             {barData.length > 0 ? (
               <div className="surface-panel">
-                <h3 className="text-sm font-semibold text-stone-900">
-                  {scope.kind === 'advertiser' ? 'Spend by campaign' : 'Spend by creative'}
-                </h3>
-                <div className="mt-3 h-72">
+                <div className="mb-2 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                  <h3 className="text-sm font-semibold text-stone-900">
+                    {scope.kind === 'advertiser' ? 'By campaign' : 'By creative'}
+                  </h3>
+                  <label className="flex items-center gap-1 text-xs text-stone-600">
+                    <span className="text-stone-500">Metric</span>
+                    <select
+                      className="input py-1 text-xs"
+                      value={barMetric}
+                      onChange={(e) => setBarMetric(e.target.value as MetricKey)}
+                    >
+                      {METRIC_OPTIONS.map((m) => (
+                        <option key={m.key} value={m.key}>
+                          {m.label}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+                <div className="mt-1 h-72">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={barData} layout="vertical" margin={{ left: 8, right: 16, top: 8, bottom: 8 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" horizontal={false} />
-                      <XAxis type="number" tick={{ fill: '#78716c', fontSize: 11 }} tickFormatter={(v) => fmt(v, 0)} />
+                      <XAxis
+                        type="number"
+                        tick={{ fill: '#78716c', fontSize: 11 }}
+                        tickFormatter={(v) => formatMetricTick(barMetric, Number(v))}
+                      />
                       <YAxis
                         type="category"
                         dataKey="name"
@@ -521,8 +653,11 @@ export function PerformancePage() {
                         tick={{ fill: '#57534e', fontSize: 10 }}
                         interval={0}
                       />
-                      <Tooltip {...chartTooltip} formatter={(v) => [fmt(Number(v), 0), 'Spend (USD)']} />
-                      <Bar dataKey="spend" name="Spend (USD)" fill="#7c3aad" radius={[0, 2, 2, 0]} />
+                      <Tooltip
+                        {...chartTooltip}
+                        formatter={(v) => [formatMetricValue(barMetric, Number(v)), metricLabel(barMetric)]}
+                      />
+                      <Bar dataKey="v" name={metricLabel(barMetric)} fill="#7c3aad" radius={[0, 2, 2, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
