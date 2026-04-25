@@ -100,10 +100,8 @@ export function CreativeDetailPage() {
       <div className={explorerUi.headerRow}>
         <div>
           <BackNavLink to={pathCampaign(advertiser.slug, campaign.slug)}>← {campaign.label}</BackNavLink>
-          <h1 className={explorerUi.title}>{creative.label}</h1>
-          <p className={explorerUi.subtitle}>
-            {formatMetaLine(advertiser.label, `Creative #${creative.creative_id}`)}
-          </p>
+          <h1 className={explorerUi.title}>Creative #{creative.creative_id}</h1>
+          <p className={explorerUi.subtitle}>{formatMetaLine(advertiser.label, creative.label)}</p>
           {creative.creative_status != null ||
           creative.perf_score != null ||
           creative.fatigue_day != null ||
