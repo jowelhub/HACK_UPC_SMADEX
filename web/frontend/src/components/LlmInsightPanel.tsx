@@ -1,10 +1,17 @@
 import { useEffect, useState } from 'react'
 
+import type { PerformanceInsightMode } from '../lib/performanceInsightContext'
+
 type StreamEvent =
   | { type: 'text'; content: string }
   | { type: 'thought'; content: string }
   | { type: 'error'; message: string }
   | { type: 'done' }
+
+/** Strips legacy SSE suffix and model echoes (handles split chunks via final pass). */
+function sanitizeInsightDisplay(text: string): string {
+  return text.replace(/\s*\[Output truncated\.\]\s*/gi, ' ').replace(/\s{2,}/g, ' ').trimEnd()
+}
 
 function parseSseDataLines(buffer: string): { events: StreamEvent[]; rest: string } {
   const events: StreamEvent[] = []
@@ -28,9 +35,13 @@ function parseSseDataLines(buffer: string): { events: StreamEvent[]; rest: strin
 type Props = {
   context: string | null
   performanceError: string | null
+  /** Extra classes on the panel (e.g. `mt-0 flex-1` when laid out beside PCA). */
+  panelClassName?: string
+  /** Selects a shorter system prompt + token budget on the ai-agent (no tools). */
+  insightMode?: PerformanceInsightMode
 }
 
-export function LlmInsightPanel({ context, performanceError }: Props) {
+export function LlmInsightPanel({ context, performanceError, panelClassName, insightMode }: Props) {
   const [text, setText] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -56,7 +67,7 @@ export function LlmInsightPanel({ context, performanceError }: Props) {
         res = await fetch('/api/agent/insight', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ context }),
+          body: JSON.stringify({ context, insightMode: insightMode ?? undefined }),
           signal: ac.signal,
         })
       } catch (e) {
@@ -94,18 +105,19 @@ export function LlmInsightPanel({ context, performanceError }: Props) {
             if (ev.type === 'text') acc += ev.content
             else if (ev.type === 'error') setError(ev.message)
           }
-          setText(acc)
+          setText(sanitizeInsightDisplay(acc))
         }
       } catch (e) {
         if ((e as Error).name === 'AbortError') return
         setError(String(e))
       } finally {
+        setText(sanitizeInsightDisplay(acc))
         setBusy(false)
       }
     })()
 
     return () => ac.abort()
-  }, [canRun, context, performanceError])
+  }, [canRun, context, performanceError, insightMode])
 
   if (performanceError) {
     return null
@@ -116,14 +128,10 @@ export function LlmInsightPanel({ context, performanceError }: Props) {
   }
 
   return (
-    <div className="surface-panel mt-5 border-stone-200/80">
+    <div className={`surface-panel border-stone-200/80 ${panelClassName ?? 'mt-5'}`}>
       <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
         <h3 className="text-sm font-semibold text-stone-900">LLM insight</h3>
-        <p className="text-[0.65rem] text-stone-400 sm:text-xs">
-          Gemma 4 via <code className="rounded bg-stone-100 px-1 py-0.5 font-mono text-[0.65rem]">/api/agent/insight</code>
-          {' '}
-          (same stack as the SQL copilot)
-        </p>
+        <p className="text-[0.65rem] text-stone-500 sm:text-xs">Powered by Gemma 4.</p>
       </div>
       {error ? (
         <p className="text-sm text-red-600">{error}</p>

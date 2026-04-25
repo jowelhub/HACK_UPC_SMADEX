@@ -1,7 +1,5 @@
-import { useEffect, useState } from 'react'
 import { CartesianGrid, ResponsiveContainer, Scatter, ScatterChart, Tooltip, XAxis, YAxis } from 'recharts'
 import type { CampaignCreativePcaPoint, CampaignCreativePcaResponse } from '../lib/api'
-import { fetchCampaignCreativePca } from '../lib/api'
 import { CAMPAIGN_PCA_SECTION } from '../lib/performanceLabels'
 import { explorerUi } from '../lib/explorerUi'
 
@@ -39,54 +37,37 @@ function scatterShape(props: {
 }
 
 type Props = {
-  campaignId: number
+  data: CampaignCreativePcaResponse | null
+  error: string | null
+  loading: boolean
 }
 
-export function CampaignCreativePcaSection({ campaignId }: Props) {
-  const [data, setData] = useState<CampaignCreativePcaResponse | null>(null)
-  const [err, setErr] = useState<string | null>(null)
-
-  useEffect(() => {
-    let cancelled = false
-    setErr(null)
-    setData(null)
-    void fetchCampaignCreativePca(campaignId)
-      .then((d) => {
-        if (!cancelled) setData(d)
-      })
-      .catch((e) => {
-        if (!cancelled) setErr(String(e))
-      })
-    return () => {
-      cancelled = true
-    }
-  }, [campaignId])
-
+export function CampaignCreativePcaSection({ data, error, loading }: Props) {
   const points = data?.points ?? []
   const evr = data?.explained_variance_ratio ?? []
   const nFeat = data?.n_features_used
 
-  if (err) {
+  if (error) {
     return (
-      <div className="mb-6">
+      <div className="mb-0">
         <h2 className={explorerUi.sectionTitle}>{CAMPAIGN_PCA_SECTION.heading}</h2>
-        <p className="text-sm text-red-600">{err}</p>
+        <p className="text-sm text-red-600">{error}</p>
       </div>
     )
   }
 
-  if (!data) {
+  if (loading) {
     return (
-      <div className="mb-6">
+      <div className="mb-0">
         <h2 className={explorerUi.sectionTitle}>{CAMPAIGN_PCA_SECTION.heading}</h2>
         <p className="text-sm text-stone-500">Loading PCA…</p>
       </div>
     )
   }
 
-  if (points.length < 2) {
+  if (!data || points.length < 2) {
     return (
-      <div className="mb-6">
+      <div className="mb-0">
         <h2 className={explorerUi.sectionTitle}>{CAMPAIGN_PCA_SECTION.heading}</h2>
         <p className="text-sm text-stone-500">Need at least two creatives in this campaign for a PCA plot.</p>
       </div>
@@ -97,7 +78,7 @@ export function CampaignCreativePcaSection({ campaignId }: Props) {
   const pc2Pct = pct(evr[1])
 
   return (
-    <div className="mb-6">
+    <div className="mb-0">
       <h2 className={explorerUi.sectionTitle}>{CAMPAIGN_PCA_SECTION.heading}</h2>
       <p className="mb-3 max-w-3xl text-sm text-stone-600">{CAMPAIGN_PCA_SECTION.subline}</p>
       {nFeat != null ? (

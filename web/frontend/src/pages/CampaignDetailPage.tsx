@@ -1,13 +1,15 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { BackNavLink } from '../components/BackNavLink'
-import { DateRangeFields } from '../components/DateRangeFields'
 import { CampaignCreativePcaSection } from '../components/CampaignCreativePcaSection'
+import { DateRangeFields } from '../components/DateRangeFields'
 import { ExplorerCreativeCard } from '../components/ExplorerCreativeCard'
 import { LlmInsightPanel } from '../components/LlmInsightPanel'
 import { PerformanceResultPanels } from '../components/PerformanceResultPanels'
 import { useExplorerBootstrap } from '../hooks/useExplorerBootstrap'
 import { usePerformanceSlice } from '../hooks/usePerformanceSlice'
+import type { CampaignCreativePcaResponse } from '../lib/api'
+import { fetchCampaignCreativePca } from '../lib/api'
 import { findAdvertiserBySlug, findCampaignBySlug } from '../lib/hierarchyResolve'
 import { PAGE_SECTION, PERFORMANCE_SECTION, UI_COPY } from '../lib/performanceLabels'
 import { buildCampaignFilters } from '../lib/performanceQueryDefaults'
@@ -27,26 +29,59 @@ export function CampaignDetailPage() {
     return buildCampaignFilters(advertiser.advertiser_id, campaign.campaign_id, dates)
   }, [advertiser, campaign, dates.from, dates.to])
 
-  const { data, err } = usePerformanceSlice(filters, null)
+  const { data, err } = usePerformanceSlice(filters, 'creative_id')
 
-  const insightContext = useMemo(
-    () =>
-      advertiser && campaign && dates.from && dates.to
-        ? buildPerformanceInsightContext({
-            entity: 'campaign',
-            headline: campaign.label,
-            subtitleLines: [
-              `Advertiser: ${advertiser.label}`,
-              `Campaign ID ${campaign.campaign_id}`,
-              `${campaign.creatives.length} creatives in this campaign`,
-            ],
-            dateFrom: dates.from,
-            dateTo: dates.to,
-            data,
-          })
-        : null,
-    [advertiser, campaign, dates.from, dates.to, data],
-  )
+  const [pca, setPca] = useState<CampaignCreativePcaResponse | null>(null)
+  const [pcaErr, setPcaErr] = useState<string | null>(null)
+  const [pcaLoading, setPcaLoading] = useState(true)
+
+  useEffect(() => {
+    if (!campaign?.campaign_id) return
+    let cancelled = false
+    const cid = campaign.campaign_id
+    setPcaLoading(true)
+    setPca(null)
+    setPcaErr(null)
+    void fetchCampaignCreativePca(cid)
+      .then((d) => {
+        if (!cancelled) {
+          setPca(d)
+          setPcaLoading(false)
+        }
+      })
+      .catch((e) => {
+        if (!cancelled) {
+          setPcaErr(String(e))
+          setPcaLoading(false)
+        }
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [campaign?.campaign_id])
+
+  const insightPack = useMemo(() => {
+    if (!advertiser || !campaign || !dates.from || !dates.to) return null
+    if (!data?.summary) return null
+    if (pcaLoading) return null
+    return buildPerformanceInsightContext({
+      entity: 'campaign',
+      headline: campaign.label,
+      subtitleLines: [
+        `Advertiser: ${advertiser.label}`,
+        `Campaign ID ${campaign.campaign_id}`,
+        `${campaign.creatives.length} creatives in this campaign`,
+      ],
+      dateFrom: dates.from,
+      dateTo: dates.to,
+      data,
+      campaignPortfolio: {
+        creatives: campaign.creatives,
+        pca: pcaErr ? null : pca,
+        pcaFetchError: pcaErr,
+      },
+    })
+  }, [advertiser, campaign, dates.from, dates.to, data, pcaLoading, pca, pcaErr])
 
   if (loadErr) {
     return <p className={explorerUi.errorMessage}>{loadErr}</p>
@@ -86,24 +121,45 @@ export function CampaignDetailPage() {
           lockDailySeriesToKpiGoal
           kpiGoal={campaign.kpi_goal ?? null}
         />
-        <LlmInsightPanel context={insightContext} performanceError={err} />
       </div>
 
-      <CampaignCreativePcaSection campaignId={campaign.campaign_id} />
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-stretch lg:gap-6">
+        <div className="min-w-0 flex-[1.15] lg:max-w-[min(100%,40rem)]">
+          <CampaignCreativePcaSection data={pca} error={pcaErr} loading={pcaLoading} />
+        </div>
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:min-w-[min(100%,18rem)]">
+          {pcaLoading ? (
+            <div className="surface-panel flex min-h-[12rem] flex-1 items-center justify-center border-stone-200/80 p-4 text-sm text-stone-500 lg:min-h-[20rem]">
+              Loading portfolio data for insight…
+            </div>
+          ) : (
+            <LlmInsightPanel
+              context={insightPack?.context ?? null}
+              insightMode={insightPack?.insightMode}
+              performanceError={err}
+              panelClassName="mt-0 flex min-h-[12rem] flex-1 flex-col lg:min-h-[20rem]"
+            />
+          )}
+        </div>
+      </div>
 
       <div>
         <h2 className={explorerUi.sectionTitle}>{PAGE_SECTION.creatives}</h2>
-        <div className="grid grid-cols-1 items-start gap-4 sm:grid-cols-3 sm:gap-4">
-          {campaign.creatives.map((cr) => (
-            <ExplorerCreativeCard
-              key={cr.creative_id}
-              to={pathCreative(advertiser.slug, campaign.slug, cr.slug)}
-              label={cr.label}
-              creativeId={cr.creative_id}
-              creativeStatus={cr.creative_status}
-              isFatigued={cr.is_fatigued}
-            />
-          ))}
+        <div className="w-full overflow-x-auto pb-1 md:overflow-visible md:pb-0">
+          <div className="grid min-w-[720px] grid-cols-6 items-start gap-2 sm:gap-3 md:min-w-0">
+            {campaign.creatives.map((cr) => (
+              <div key={cr.creative_id} className="min-w-0">
+                <ExplorerCreativeCard
+                  to={pathCreative(advertiser.slug, campaign.slug, cr.slug)}
+                  label={`#${cr.creative_id}`}
+                  title={cr.label}
+                  creativeId={cr.creative_id}
+                  creativeStatus={cr.creative_status}
+                  isFatigued={cr.is_fatigued}
+                />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

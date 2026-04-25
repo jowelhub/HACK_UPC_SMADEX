@@ -42,7 +42,7 @@ export function CreativeDetailPage() {
   )
   const { data, err } = usePerformanceSlice(filters, null, creativeSliceOpts)
 
-  const insightContext = useMemo(
+  const insightPack = useMemo(
     () =>
       advertiser && campaign && creative && dates.from && dates.to
         ? buildPerformanceInsightContext({
@@ -154,7 +154,7 @@ export function CreativeDetailPage() {
           kpiGoal={campaign.kpi_goal ?? null}
         />
         <CreativeCrossDimensionSection data={data} queryError={err} />
-        <LlmInsightPanel context={insightContext} performanceError={err} />
+        <LlmInsightPanel context={insightPack?.context ?? null} insightMode={insightPack?.insightMode} performanceError={err} />
       </div>
     </div>
   )
