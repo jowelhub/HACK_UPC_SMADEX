@@ -172,8 +172,8 @@ export function ChatPage() {
   }
 
   return (
-    <div className="mx-auto flex h-full min-h-0 w-full max-w-3xl flex-col">
-      <header className="shrink-0 border-b border-stone-200/60 pb-3 sm:pb-4">
+    <div className="mx-auto flex h-full min-h-0 w-full min-w-0 max-w-3xl flex-col">
+      <header className="shrink-0 border-b border-stone-200/50 pb-4 sm:pb-5">
         <h1 className="font-display text-lg font-semibold tracking-tight text-stone-900 sm:text-xl">
           Natural language to SQL copilot
         </h1>
@@ -201,7 +201,7 @@ export function ChatPage() {
       {/* Thread: only this region scrolls */}
       <div className="relative min-h-0 min-w-0 flex-1">
         <div
-          className="h-full min-h-0 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] [-webkit-overflow-scrolling:touch] px-0 pt-1 sm:pt-2"
+          className="h-full min-h-0 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] [-webkit-overflow-scrolling:touch] px-0 pt-2 sm:pt-3"
           role="log"
           aria-live="polite"
         >
@@ -282,7 +282,7 @@ export function ChatPage() {
           e.preventDefault()
           void send()
         }}
-        className="shrink-0 border-t border-stone-200/50 bg-canvas/95 pt-3 pb-1 [padding-bottom:max(0.25rem,env(safe-area-inset-bottom))] sm:pt-4"
+        className="shrink-0 border-t border-stone-200/50 bg-canvas/95 pt-4 pb-2 [padding-bottom:max(0.5rem,env(safe-area-inset-bottom))] sm:pt-5 sm:pb-3"
       >
         <div className="rounded-2xl border border-stone-200/60 bg-white p-2.5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] sm:p-3">
           <div className="grid w-full min-w-0 grid-cols-1 items-end gap-2.5 sm:grid-cols-[1fr_auto] sm:gap-3">
