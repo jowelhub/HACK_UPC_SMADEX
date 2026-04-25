@@ -25,7 +25,29 @@ export async function fetchPerformanceQuery(payload: {
     timeseries?: Array<Record<string, unknown>>
     breakdown?: Array<Record<string, unknown>>
     leaderboard?: Array<Record<string, unknown>>
+    entity_rankings?: {
+      advertisers: PerformanceEntityRow[]
+      campaigns: PerformanceEntityRow[]
+      creatives: PerformanceEntityRow[]
+    }
   }>('/api/performance/query', payload)
+}
+
+export type PerformanceEntityRow = {
+  label: string
+  advertiser_id?: number
+  campaign_id?: number
+  creative_id?: number
+  spend_usd: number
+  impressions: number
+  clicks: number
+  conversions: number
+  revenue_usd: number
+  ctr: number | null
+  cvr: number | null
+  cpa_usd: number | null
+  roas: number | null
+  ipm: number | null
 }
 
 export async function fetchFilterOptions(filters: PerformanceFilters) {

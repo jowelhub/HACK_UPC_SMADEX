@@ -146,6 +146,7 @@ def _summary_block(sub: pd.DataFrame) -> dict[str, Any]:
     distinct_days = int(sub["date"].dt.normalize().nunique()) if len(sub) else 0
     distinct_creatives = int(sub["creative_id"].nunique()) if len(sub) else 0
     distinct_campaigns = int(sub["campaign_id"].nunique()) if len(sub) else 0
+    distinct_advertisers = int(sub["advertiser_id"].nunique()) if len(sub) and "advertiser_id" in sub.columns else 0
 
     return {
         "total_spend_usd": round(spend, 4),
@@ -156,6 +157,7 @@ def _summary_block(sub: pd.DataFrame) -> dict[str, Any]:
         "total_revenue_usd": round(rev, 4),
         "total_video_completions": vc,
         "calendar_days_in_window": distinct_days,
+        "distinct_advertisers": distinct_advertisers,
         "distinct_creatives": distinct_creatives,
         "distinct_campaigns": distinct_campaigns,
         "overall_ctr": _safe_div(clicks, imps),
@@ -163,7 +165,65 @@ def _summary_block(sub: pd.DataFrame) -> dict[str, Any]:
         "overall_ipm": _safe_div(1000.0 * conv, imps),
         "overall_roas": _safe_div(rev, spend),
         "overall_cpa_usd": _safe_div(spend, conv),
+        "overall_viewability_rate": _safe_div(vimps, imps),
     }
+
+
+def _agg_entity_block(agg_row: pd.Series) -> dict[str, Any]:
+    spend = float(agg_row["spend_usd"])
+    imps = int(agg_row["impressions"])
+    clicks = int(agg_row["clicks"])
+    conv = int(agg_row["conversions"])
+    rev = float(agg_row["revenue_usd"])
+    return {
+        "spend_usd": round(spend, 4),
+        "impressions": imps,
+        "clicks": clicks,
+        "conversions": conv,
+        "revenue_usd": round(rev, 4),
+        "ctr": _safe_div(clicks, imps),
+        "cvr": _safe_div(conv, clicks),
+        "cpa_usd": _safe_div(spend, conv),
+        "roas": _safe_div(rev, spend),
+        "ipm": _safe_div(1000.0 * conv, imps),
+    }
+
+
+def _entity_rankings(
+    sub: pd.DataFrame,
+    store: DataStore,
+    by: str,
+    id_col: str,
+    limit: int = 15,
+) -> list[dict[str, Any]]:
+    """Rank entities in the filtered slice by spend (highest footprint first)."""
+    if len(sub) == 0 or by not in sub.columns:
+        return []
+    agg = sub.groupby(by, as_index=False).agg(
+        spend_usd=("spend_usd", "sum"),
+        impressions=("impressions", "sum"),
+        clicks=("clicks", "sum"),
+        conversions=("conversions", "sum"),
+        revenue_usd=("revenue_usd", "sum"),
+    )
+    agg = agg.sort_values("spend_usd", ascending=False, na_position="last").head(limit)
+    rows: list[dict[str, Any]] = []
+    for _, r in agg.iterrows():
+        eid = int(r[by])
+        base: dict[str, Any] = {id_col: eid, **_agg_entity_block(r)}
+        if by == "advertiser_id":
+            m = store.advertisers[store.advertisers["advertiser_id"] == eid]
+            base["label"] = str(m.iloc[0]["advertiser_name"]) if len(m) else str(eid)
+        elif by == "campaign_id":
+            m = store.campaigns[store.campaigns["campaign_id"] == eid]
+            base["label"] = _campaign_display_label(m.iloc[0]) if len(m) else f"Campaign {eid}"
+        elif by == "creative_id":
+            m = store.creatives[store.creatives["creative_id"] == eid]
+            base["label"] = _composite_creative_label(m.iloc[0], store.campaigns) if len(m) else f"Creative {eid}"
+        else:
+            base["label"] = str(eid)
+        rows.append(base)
+    return rows
 
 
 class PerformanceService:
@@ -264,6 +324,16 @@ class PerformanceService:
 
         result: dict[str, Any] = {"summary": summary, "row_count": int(len(sub))}
 
+        if len(sub) and "advertiser_id" in sub.columns:
+            st = self._store
+            result["entity_rankings"] = {
+                "advertisers": _entity_rankings(sub, st, "advertiser_id", "advertiser_id", limit=15),
+                "campaigns": _entity_rankings(sub, st, "campaign_id", "campaign_id", limit=15),
+                "creatives": _entity_rankings(sub, st, "creative_id", "creative_id", limit=15),
+            }
+        else:
+            result["entity_rankings"] = {"advertisers": [], "campaigns": [], "creatives": []}
+
         if ts_grain == "day" and len(sub):
             sub_ts = sub.copy()
             sub_ts["_day"] = pd.to_datetime(sub_ts["date"]).dt.normalize()
@@ -278,6 +348,9 @@ class PerformanceService:
             )
             g["ctr"] = g.apply(lambda r: _safe_div(r["clicks"], r["impressions"]), axis=1)
             g["cvr"] = g.apply(lambda r: _safe_div(r["conversions"], r["clicks"]), axis=1)
+            g["ipm"] = g.apply(lambda r: _safe_div(1000.0 * r["conversions"], r["impressions"]), axis=1)
+            g["cpa_usd"] = g.apply(lambda r: _safe_div(r["spend_usd"], r["conversions"]), axis=1)
+            g["roas"] = g.apply(lambda r: _safe_div(r["revenue_usd"], r["spend_usd"]), axis=1)
             g["viewability_rate"] = g.apply(lambda r: _safe_div(r["viewable_impressions"], r["impressions"]), axis=1)
             g["date"] = g["_day"].dt.strftime("%Y-%m-%d")
             g = g.drop(columns=["_day"])
