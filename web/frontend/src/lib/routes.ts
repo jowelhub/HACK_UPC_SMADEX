@@ -1,20 +1,19 @@
 /**
- * Client routes: single source of truth for URL segments and path builders.
- * Keep in sync with <Route path="…"> in App.tsx (patterns exported as ROUTE_PATTERNS).
+ * Client routes: path builders + patterns for <Route path="…">.
+ * Campaign and creative live as extra path segments (no reserved words like "campaign").
  */
 
 export const ROUTE_SEGMENTS = {
-  campaign: 'campaign',
-  creative: 'creative',
   copilot: 'copilot',
 } as const
 
-/** Child route paths under the layout parent (no leading slash). */
+/** Child route paths under the layout parent (no leading slash). Declare most specific first in <Routes>. */
 export const ROUTE_PATTERNS = {
   copilot: ROUTE_SEGMENTS.copilot,
-  creativeNested: `:advertiserSlug/${ROUTE_SEGMENTS.campaign}/:campaignSlug/${ROUTE_SEGMENTS.creative}/:creativeSlug`,
-  campaign: `:advertiserSlug/${ROUTE_SEGMENTS.campaign}/:campaignSlug`,
-  legacyCreativeById: `:advertiserSlug/${ROUTE_SEGMENTS.creative}/:creativeId`,
+  /** Creative drill-down: /{advertiser}/{campaign}/{creative} */
+  creativeNested: ':advertiserSlug/:campaignSlug/:creativeSlug',
+  /** Advertiser + campaign or numeric legacy creative id: /{advertiser}/{campaignOrId} */
+  advertiserCampaign: ':advertiserSlug/:campaignSlug',
   advertiser: ':advertiserSlug',
 } as const
 
@@ -22,7 +21,6 @@ function seg(part: string) {
   return part.replace(/^\/+|\/+$/g, '')
 }
 
-/** Home / advertiser index */
 export function pathHome() {
   return '/'
 }
@@ -36,9 +34,14 @@ export function pathAdvertiser(advertiserSlug: string) {
 }
 
 export function pathCampaign(advertiserSlug: string, campaignSlug: string) {
-  return `/${seg(advertiserSlug)}/${ROUTE_SEGMENTS.campaign}/${seg(campaignSlug)}`
+  return `/${seg(advertiserSlug)}/${seg(campaignSlug)}`
 }
 
 export function pathCreative(advertiserSlug: string, campaignSlug: string, creativeSlug: string) {
-  return `/${seg(advertiserSlug)}/${ROUTE_SEGMENTS.campaign}/${seg(campaignSlug)}/${ROUTE_SEGMENTS.creative}/${seg(creativeSlug)}`
+  return `/${seg(advertiserSlug)}/${seg(campaignSlug)}/${seg(creativeSlug)}`
+}
+
+/** Second path segment is only digits (legacy deep-link by creative id). */
+export function isNumericCreativeSegment(segment: string | undefined): boolean {
+  return Boolean(segment && /^\d+$/.test(segment))
 }

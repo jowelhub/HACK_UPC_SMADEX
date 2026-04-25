@@ -5,14 +5,13 @@ import { findAdvertiserBySlug, findCreativeInAdvertiser } from '../lib/hierarchy
 import { UI_COPY } from '../lib/performanceLabels'
 import { pathCreative, pathHome, pathAdvertiser } from '../lib/routes'
 
-/** Old URL /:advertiserSlug/creative/:id → nested campaign/creative slug URL. */
-export function LegacyCreativeRedirect() {
-  const { advertiserSlug, creativeId: creativeIdParam } = useParams<{
-    advertiserSlug: string
-    creativeId: string
-  }>()
+/**
+ * Legacy: /{advertiser}/{numericCreativeId} → full slug URL for that creative.
+ */
+export function LegacyNumericCreativeRedirect() {
+  const { advertiserSlug, campaignSlug } = useParams<{ advertiserSlug: string; campaignSlug: string }>()
   const navigate = useNavigate()
-  const id = creativeIdParam ? parseInt(creativeIdParam, 10) : NaN
+  const id = campaignSlug ? parseInt(campaignSlug, 10) : NaN
 
   useEffect(() => {
     if (!Number.isFinite(id) || !advertiserSlug) {
