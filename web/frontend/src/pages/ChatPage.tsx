@@ -201,11 +201,11 @@ export function ChatPage() {
       {/* Thread: only this region scrolls */}
       <div className="relative min-h-0 min-w-0 flex-1">
         <div
-          className="h-full min-h-0 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] [-webkit-overflow-scrolling:touch] px-0 pt-2 sm:pt-3"
+          className="h-full min-h-0 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] [-webkit-overflow-scrolling:touch] pt-2 pl-0 sm:pt-3"
           role="log"
           aria-live="polite"
         >
-          <div className="space-y-5 py-1 pb-3 sm:space-y-6 sm:pb-4">
+          <div className="space-y-5 pb-3 pl-0 pr-3 pt-1 sm:space-y-6 sm:pb-4 sm:pr-4">
             {rows.length === 0 && !pending ? (
               <p className="rounded-2xl bg-stone-100/60 px-4 py-3 text-sm text-stone-500 sm:px-5">
                 <span className="text-stone-400">Try:</span> “Top 10 creatives by CTR in the last 30 days”
@@ -287,7 +287,7 @@ export function ChatPage() {
         <div className="rounded-2xl border border-stone-200/60 bg-white p-2.5 shadow-[0_1px_3px_rgba(0,0,0,0.04)] sm:p-3">
           <div className="grid w-full min-w-0 grid-cols-1 items-end gap-2.5 sm:grid-cols-[1fr_auto] sm:gap-3">
             <textarea
-              className="input min-h-[72px] w-full min-w-0 max-h-40 resize-y rounded-xl border-stone-200/90 bg-stone-50/50 px-3.5 py-2.5 text-sm leading-relaxed focus:border-brand-200/80 focus:bg-white focus:ring-2 focus:ring-brand/15"
+              className="input min-h-[2.75rem] w-full min-w-0 max-h-40 resize-y rounded-xl border-stone-200/90 bg-stone-50/50 px-3.5 py-1.5 text-sm leading-normal focus:border-brand-200/80 focus:bg-white focus:ring-2 focus:ring-brand/15"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={onComposerKeyDown}
