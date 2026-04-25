@@ -180,8 +180,8 @@ class PerformanceService:
     def filter_options(self, current_filters: dict[str, Any] | None = None) -> dict[str, list[Any]]:
         """Unique values per dimension from the enriched daily table.
 
-        When ``advertiser_ids`` or ``campaign_ids`` are present, campaign/creative option lists
-        are narrowed for dependent dropdowns.
+        When ``advertiser_ids`` are present, campaign and creative option lists are narrowed.
+        When only ``campaign_ids`` are present (no advertisers), creatives are narrowed to those campaigns.
         """
         current_filters = current_filters or {}
         base = self._df
@@ -222,6 +222,7 @@ class PerformanceService:
         if current_filters.get("advertiser_ids"):
             cf = _apply_filters(base, narrow_filters)
             opts["campaign_id"] = sorted(int(x) for x in cf["campaign_id"].dropna().unique())
+            opts["creative_id"] = sorted(int(x) for x in cf["creative_id"].dropna().unique())
         if current_filters.get("campaign_ids"):
             cf2 = _apply_filters(base, narrow_filters)
             opts["creative_id"] = sorted(int(x) for x in cf2["creative_id"].dropna().unique())

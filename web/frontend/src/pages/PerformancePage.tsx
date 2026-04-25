@@ -16,6 +16,60 @@ import type { LabeledOption } from '../components/MultiSelect'
 import { MultiSelect } from '../components/MultiSelect'
 import { fetchFilterOptions, fetchPerformanceQuery, type PerformanceFilters } from '../lib/api'
 
+function idListSignature(v: unknown): string {
+  if (!Array.isArray(v) || v.length === 0) return ''
+  return [...v].map(String).sort().join(',')
+}
+
+/** Match the same calendar math as ``setPreset`` on this page. */
+function isPresetActive(
+  preset: 'all' | '30' | '7',
+  filters: PerformanceFilters,
+  dateRange: { min?: string; max?: string } | undefined,
+): boolean {
+  if (preset === 'all') return !filters.date_from && !filters.date_to
+  if (!dateRange?.min || !dateRange?.max) return false
+  const end = new Date(dateRange.max)
+  const days = preset === '30' ? 30 : 7
+  const start = new Date(end)
+  start.setDate(start.getDate() - (days - 1))
+  const minD = new Date(dateRange.min)
+  if (start < minD) start.setTime(minD.getTime())
+  const expFrom = start.toISOString().slice(0, 10)
+  const expTo = end.toISOString().slice(0, 10)
+  return filters.date_from === expFrom && filters.date_to === expTo
+}
+
+function formatDateRangeSummary(
+  filters: PerformanceFilters,
+  dateRange: { min?: string; max?: string } | undefined,
+  preset: 'all' | '30' | '7' | 'custom',
+): string {
+  if (preset === 'all' && dateRange?.min && dateRange?.max) {
+    try {
+      const a = new Date(`${dateRange.min}T12:00:00`)
+      const b = new Date(`${dateRange.max}T12:00:00`)
+      return `${a.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} – ${b.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`
+    } catch {
+      return 'Full data range'
+    }
+  }
+  if (preset === '30') return 'Last 30 days (through latest data)'
+  if (preset === '7') return 'Last 7 days (through latest data)'
+  if (filters.date_from && filters.date_to) {
+    try {
+      const a = new Date(`${filters.date_from}T12:00:00`)
+      const b = new Date(`${filters.date_to}T12:00:00`)
+      return `${a.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} – ${b.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`
+    } catch {
+      return 'Custom range'
+    }
+  }
+  if (filters.date_from) return `From ${filters.date_from}`
+  if (filters.date_to) return `Through ${filters.date_to}`
+  return 'Pick a range or a preset'
+}
+
 function fmt(n: number | null | undefined, digits = 2) {
   if (n === null || n === undefined || Number.isNaN(n)) return '-'
   return n.toLocaleString(undefined, { maximumFractionDigits: digits })
@@ -56,6 +110,32 @@ export function PerformancePage() {
   }, [filters])
 
   const dateRange = opts?.date_range as { min?: string; max?: string } | undefined
+
+  const activePreset = useMemo((): 'all' | '30' | '7' | 'custom' => {
+    if (isPresetActive('all', filters, dateRange)) return 'all'
+    if (isPresetActive('30', filters, dateRange)) return '30'
+    if (isPresetActive('7', filters, dateRange)) return '7'
+    return 'custom'
+  }, [filters, dateRange])
+
+  useEffect(() => {
+    if (!opts) return
+    const validCampaigns = new Set((opts.campaign_id as (string | number)[] | undefined)?.map(String) ?? [])
+    const validCreatives = new Set((opts.creative_id as (string | number)[] | undefined)?.map(String) ?? [])
+    setFilters((f) => {
+      const campRaw = f.campaign_ids as (string | number)[] | undefined
+      const creRaw = f.creative_ids as (string | number)[] | undefined
+      const nextCamp =
+        Array.isArray(campRaw) && campRaw.length ? campRaw.filter((id) => validCampaigns.has(String(id))) : undefined
+      const nextCre = Array.isArray(creRaw) && creRaw.length ? creRaw.filter((id) => validCreatives.has(String(id))) : undefined
+      const campFinal = nextCamp?.length ? nextCamp : undefined
+      const creFinal = nextCre?.length ? nextCre : undefined
+      if (idListSignature(f.campaign_ids) === idListSignature(campFinal) && idListSignature(f.creative_ids) === idListSignature(creFinal)) {
+        return f
+      }
+      return { ...f, campaign_ids: campFinal, creative_ids: creFinal }
+    })
+  }, [opts])
 
   const setPreset = (preset: 'all' | '30' | '7') => {
     if (!dateRange?.min || !dateRange?.max) return
@@ -130,6 +210,8 @@ export function PerformancePage() {
     { key: 'dominant_colors', label: 'Color', optKey: 'dominant_color' },
     { key: 'emotional_tones', label: 'Tone', optKey: 'emotional_tone' },
   ]
+  const entityChipKeys = chipKeys.slice(0, 3)
+  const moreChipKeys = chipKeys.slice(3)
   const numericRanges = (opts?.numeric_ranges as Record<string, { min: number | null; max: number | null }> | undefined) || {}
   const numericKeys = [
     ['days_since_launch', 'Days live'],
@@ -157,48 +239,109 @@ export function PerformancePage() {
       </div>
 
       <section className="rounded-2xl border border-slate-800 bg-slate-900/30 p-4 sm:p-5">
-        <div className="flex flex-wrap items-center gap-2 border-b border-slate-800 pb-4">
-          <span className="text-xs font-semibold uppercase tracking-wide text-slate-500">Time</span>
-          <button type="button" onClick={() => setPreset('all')} className="btn-secondary !py-1 text-xs">
-            All time
-          </button>
-          <button type="button" onClick={() => setPreset('30')} className="btn-secondary !py-1 text-xs">
-            Last 30 days
-          </button>
-          <button type="button" onClick={() => setPreset('7')} className="btn-secondary !py-1 text-xs">
-            Last 7 days
-          </button>
-          <div className="ml-auto flex flex-wrap gap-2">
-            <input
-              type="date"
-              className="input"
-              value={(filters.date_from as string) || ''}
-              onChange={(e) => setFilters((f) => ({ ...f, date_from: e.target.value || undefined }))}
-            />
-            <input
-              type="date"
-              className="input"
-              value={(filters.date_to as string) || ''}
-              onChange={(e) => setFilters((f) => ({ ...f, date_to: e.target.value || undefined }))}
-            />
+        <div className="border-b border-slate-800 pb-4">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div className="min-w-0">
+              <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Date range</div>
+              <p className="mt-1.5 text-sm leading-snug text-slate-200">{formatDateRangeSummary(filters, dateRange, activePreset)}</p>
+            </div>
+            <div className="flex flex-shrink-0 flex-wrap gap-2">
+              {(
+                [
+                  { id: 'all' as const, label: 'All time' },
+                  { id: '30' as const, label: 'Last 30 days' },
+                  { id: '7' as const, label: 'Last 7 days' },
+                ] as const
+              ).map(({ id, label }) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setPreset(id)}
+                  className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
+                    activePreset === id
+                      ? 'border-accent/50 bg-accent/15 text-accent shadow-sm shadow-accent/10 ring-1 ring-accent/35'
+                      : 'border-slate-700 bg-slate-800/80 text-slate-200 hover:bg-slate-700'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="mt-4 rounded-xl border border-slate-700/80 bg-slate-950/50 p-3 sm:p-4">
+            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+              <span className="text-xs font-medium text-slate-400">Custom range</span>
+              <span className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
+                {activePreset === 'custom' ? (
+                  <span className="text-accent/90">Custom selection</span>
+                ) : (
+                  <span>Edits here switch to custom</span>
+                )}
+              </span>
+            </div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+              <label className="flex min-w-0 flex-1 flex-col gap-1">
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">From</span>
+                <input
+                  type="date"
+                  className="input w-full"
+                  min={dateRange?.min}
+                  max={dateRange?.max}
+                  value={(filters.date_from as string) || ''}
+                  onChange={(e) => setFilters((f) => ({ ...f, date_from: e.target.value || undefined }))}
+                />
+              </label>
+              <div className="hidden shrink-0 pb-2 text-slate-600 sm:block" aria-hidden>
+                →
+              </div>
+              <label className="flex min-w-0 flex-1 flex-col gap-1">
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Through</span>
+                <input
+                  type="date"
+                  className="input w-full"
+                  min={dateRange?.min}
+                  max={dateRange?.max}
+                  value={(filters.date_to as string) || ''}
+                  onChange={(e) => setFilters((f) => ({ ...f, date_to: e.target.value || undefined }))}
+                />
+              </label>
+            </div>
           </div>
         </div>
 
-        <div className="mt-4 grid gap-3 lg:grid-cols-2 xl:grid-cols-3">
-          {chipKeys.slice(0, 6).map(({ key, label, optKey, labeledKey }) => (
-            <MultiSelect
+        <div className="mt-5 space-y-4">
+          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Entity scope</div>
+          <p className="text-xs text-slate-500">
+            Narrow in order: advertisers, then their campaigns, then creatives in those campaigns. Lists update as you go.
+          </p>
+          {entityChipKeys.map(({ key, label, optKey, labeledKey }, i) => (
+            <div
               key={String(key)}
-              label={label}
-              options={optionsForChip(opts, optKey, labeledKey)}
-              value={(filters[key] as (string | number)[]) || []}
-              onChange={(v) => setFilters((f) => ({ ...f, [key]: v.length ? v : undefined }))}
-            />
+              className={i === 0 ? '' : 'relative ml-1 border-l-2 border-slate-700/80 pl-4 pt-1 sm:ml-2 sm:pl-5'}
+            >
+              {i > 0 ? (
+                <p className="mb-2 text-[11px] leading-relaxed text-slate-500">
+                  {i === 1
+                    ? 'Campaigns for the advertisers above (full list when no advertisers are selected).'
+                    : 'Narrowed by selected campaigns when set; otherwise by selected advertisers; otherwise the full catalog.'}
+                </p>
+              ) : null}
+              <MultiSelect
+                label={label}
+                options={optionsForChip(opts, optKey, labeledKey)}
+                value={(filters[key] as (string | number)[]) || []}
+                onChange={(v) => setFilters((f) => ({ ...f, [key]: v.length ? v : undefined }))}
+              />
+            </div>
           ))}
         </div>
-        <details className="mt-4 rounded-lg border border-slate-800 bg-ink-950/50 p-3">
-          <summary className="cursor-pointer text-sm font-medium text-slate-300">More filters</summary>
+        <details className="mt-5 rounded-lg border border-slate-800 bg-ink-950/50 p-3">
+          <summary className="cursor-pointer select-none text-sm font-medium text-slate-300">
+            More filters
+            <span className="ml-2 text-xs font-normal text-slate-500">Countries, OS, vertical, and advanced dimensions</span>
+          </summary>
           <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {chipKeys.slice(6).map(({ key, label, optKey, labeledKey }) => (
+            {moreChipKeys.map(({ key, label, optKey, labeledKey }) => (
               <MultiSelect
                 key={String(key)}
                 label={label}
