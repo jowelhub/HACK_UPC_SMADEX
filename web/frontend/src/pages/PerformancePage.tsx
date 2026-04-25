@@ -10,53 +10,12 @@ function idListSignature(v: unknown): string {
   return [...v].map(String).sort().join(',')
 }
 
-/** Match the same calendar math as ``setPreset`` on this page. */
-function isPresetActive(
-  preset: 'all' | '30' | '7',
-  filters: PerformanceFilters,
-  dateRange: { min?: string; max?: string } | undefined,
-): boolean {
-  if (preset === 'all') return !filters.date_from && !filters.date_to
-  if (!dateRange?.min || !dateRange?.max) return false
-  const end = new Date(dateRange.max)
-  const days = preset === '30' ? 30 : 7
-  const start = new Date(end)
-  start.setDate(start.getDate() - (days - 1))
-  const minD = new Date(dateRange.min)
-  if (start < minD) start.setTime(minD.getTime())
-  const expFrom = start.toISOString().slice(0, 10)
-  const expTo = end.toISOString().slice(0, 10)
-  return filters.date_from === expFrom && filters.date_to === expTo
-}
-
-function formatDateRangeSummary(
-  filters: PerformanceFilters,
-  dateRange: { min?: string; max?: string } | undefined,
-  preset: 'all' | '30' | '7' | 'custom',
-): string {
-  if (preset === 'all' && dateRange?.min && dateRange?.max) {
-    try {
-      const a = new Date(`${dateRange.min}T12:00:00`)
-      const b = new Date(`${dateRange.max}T12:00:00`)
-      return `${a.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} – ${b.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`
-    } catch {
-      return 'Full data range'
-    }
-  }
-  if (preset === '30') return 'Last 30 days (through latest data)'
-  if (preset === '7') return 'Last 7 days (through latest data)'
-  if (filters.date_from && filters.date_to) {
-    try {
-      const a = new Date(`${filters.date_from}T12:00:00`)
-      const b = new Date(`${filters.date_to}T12:00:00`)
-      return `${a.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })} – ${b.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })}`
-    } catch {
-      return 'Custom range'
-    }
-  }
-  if (filters.date_from) return `From ${filters.date_from}`
-  if (filters.date_to) return `Through ${filters.date_to}`
-  return 'Pick a range or a preset'
+/** Clamp YYYY-MM-DD to dataset bounds (inclusive). */
+function clampIsoDate(ymd: string, min?: string, max?: string): string {
+  let v = ymd
+  if (min && v < min) v = min
+  if (max && v > max) v = max
+  return v
 }
 
 function fmt(n: number | null | undefined, digits = 2) {
@@ -86,7 +45,6 @@ function optionsForChip(
 export function PerformancePage() {
   const [opts, setOpts] = useState<Record<string, unknown> | null>(null)
   const [filters, setFilters] = useState<PerformanceFilters>({})
-  const [lbMetric, setLbMetric] = useState('ctr')
   const [loading, setLoading] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [data, setData] = useState<Awaited<ReturnType<typeof fetchPerformanceQuery>> | null>(null)
@@ -99,12 +57,13 @@ export function PerformancePage() {
 
   const dateRange = opts?.date_range as { min?: string; max?: string } | undefined
 
-  const activePreset = useMemo((): 'all' | '30' | '7' | 'custom' => {
-    if (isPresetActive('all', filters, dateRange)) return 'all'
-    if (isPresetActive('30', filters, dateRange)) return '30'
-    if (isPresetActive('7', filters, dateRange)) return '7'
-    return 'custom'
-  }, [filters, dateRange])
+  useEffect(() => {
+    if (!dateRange?.min || !dateRange?.max) return
+    setFilters((f) => {
+      if (f.date_from && f.date_to) return f
+      return { ...f, date_from: dateRange.min, date_to: dateRange.max }
+    })
+  }, [dateRange?.min, dateRange?.max])
 
   useEffect(() => {
     if (!opts) return
@@ -125,25 +84,6 @@ export function PerformancePage() {
     })
   }, [opts])
 
-  const setPreset = (preset: 'all' | '30' | '7') => {
-    if (!dateRange?.min || !dateRange?.max) return
-    if (preset === 'all') {
-      setFilters((f) => ({ ...f, date_from: undefined, date_to: undefined }))
-      return
-    }
-    const end = new Date(dateRange.max)
-    const days = preset === '30' ? 30 : 7
-    const start = new Date(end)
-    start.setDate(start.getDate() - (days - 1))
-    const minD = new Date(dateRange.min)
-    if (start < minD) start.setTime(minD.getTime())
-    setFilters((f) => ({
-      ...f,
-      date_from: start.toISOString().slice(0, 10),
-      date_to: end.toISOString().slice(0, 10),
-    }))
-  }
-
   useEffect(() => {
     let cancelled = false
     setLoading(true)
@@ -152,7 +92,7 @@ export function PerformancePage() {
       filters,
       timeseries_grain: 'day',
       breakdown: null,
-      leaderboard: { by: 'creative_id', metric: lbMetric, limit: 12 },
+      leaderboard: null,
     })
       .then((res) => {
         if (!cancelled) setData(res)
@@ -166,12 +106,50 @@ export function PerformancePage() {
     return () => {
       cancelled = true
     }
-  }, [filters, lbMetric])
+  }, [filters])
 
   const summary = data?.summary
 
   const ts = useMemo(() => data?.timeseries ?? [], [data])
-  const lb = useMemo(() => data?.leaderboard ?? [], [data])
+
+  const handleDateFromInput = (raw: string) => {
+    const bmin = dateRange?.min
+    const bmax = dateRange?.max
+    if (!bmin || !bmax) return
+    setFilters((f) => {
+      let from = raw ? clampIsoDate(raw, bmin, bmax) : bmin
+      let to = (f.date_to as string | undefined) || bmax
+      to = clampIsoDate(to, bmin, bmax)
+      if (from > to) to = from
+      return { ...f, date_from: from, date_to: to }
+    })
+  }
+
+  const handleDateToInput = (raw: string) => {
+    const bmin = dateRange?.min
+    const bmax = dateRange?.max
+    if (!bmin || !bmax) return
+    setFilters((f) => {
+      let to = raw ? clampIsoDate(raw, bmin, bmax) : bmax
+      let from = (f.date_from as string | undefined) || bmin
+      from = clampIsoDate(from, bmin, bmax)
+      if (to < from) from = to
+      return { ...f, date_from: from, date_to: to }
+    })
+  }
+
+  const dateFromMax =
+    dateRange?.max &&
+    (filters.date_to as string | undefined) &&
+    String(filters.date_to) <= dateRange.max
+      ? String(filters.date_to)
+      : dateRange?.max
+  const dateToMin =
+    dateRange?.min &&
+    (filters.date_from as string | undefined) &&
+    String(filters.date_from) >= dateRange.min
+      ? String(filters.date_from)
+      : dateRange?.min
 
   const chipKeys: { key: keyof PerformanceFilters; label: string; optKey: string; labeledKey?: string }[] = [
     { key: 'advertiser_ids', label: 'Advertisers', optKey: 'advertiser_id', labeledKey: 'advertiser_labeled' },
@@ -215,122 +193,35 @@ export function PerformancePage() {
       <div>
         <h1 className="font-display text-2xl font-bold text-white">Performance explorer</h1>
         <p className="mt-1 text-sm text-slate-400">
-          All metrics are aggregated from <code className="text-accent">creative_daily_country_os_stats</code> after joins - no
-          pre-baked creative_summary totals unless you choose the same window.
+          Metrics from <code className="text-accent">creative_daily_country_os_stats</code> with joins; filters slice the same fact rows.
         </p>
       </div>
 
       <section className="rounded-2xl border border-slate-800 bg-slate-900/30 p-4 sm:p-5">
-        <div className="border-b border-slate-800 pb-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="min-w-0">
-              <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Date range</div>
-              <p className="mt-1.5 text-sm leading-snug text-slate-200">{formatDateRangeSummary(filters, dateRange, activePreset)}</p>
-            </div>
-            <div className="flex flex-shrink-0 flex-wrap gap-2">
-              {(
-                [
-                  { id: 'all' as const, label: 'All time' },
-                  { id: '30' as const, label: 'Last 30 days' },
-                  { id: '7' as const, label: 'Last 7 days' },
-                ] as const
-              ).map(({ id, label }) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setPreset(id)}
-                  className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
-                    activePreset === id
-                      ? 'border-accent/50 bg-accent/15 text-accent shadow-sm shadow-accent/10 ring-1 ring-accent/35'
-                      : 'border-slate-700 bg-slate-800/80 text-slate-200 hover:bg-slate-700'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
+        <div className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-3">
+          <div className="min-w-0 rounded-lg border border-slate-800/70 bg-slate-950/25 p-3">
+              <MultiSelect
+                label={entityChipKeys[0].label}
+                options={optionsForChip(opts, entityChipKeys[0].optKey, entityChipKeys[0].labeledKey)}
+                value={(filters[entityChipKeys[0].key] as (string | number)[]) || []}
+                onChange={(v) => setFilters((f) => ({ ...f, [entityChipKeys[0].key]: v.length ? v : undefined }))}
+                searchable
+                searchPlaceholder="Search advertisers…"
+                maxChipRows={3}
+              />
           </div>
-          <div className="mt-4 rounded-xl border border-slate-700/80 bg-slate-950/50 p-3 sm:p-4">
-            <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-              <span className="text-xs font-medium text-slate-400">Custom range</span>
-              <span className="text-[10px] font-medium uppercase tracking-wide text-slate-500">
-                {activePreset === 'custom' ? (
-                  <span className="text-accent/90">Custom selection</span>
-                ) : (
-                  <span>Edits here switch to custom</span>
-                )}
-              </span>
-            </div>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
-              <label className="flex min-w-0 flex-1 flex-col gap-1">
-                <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">From</span>
-                <input
-                  type="date"
-                  className="input w-full"
-                  min={dateRange?.min}
-                  max={dateRange?.max}
-                  value={(filters.date_from as string) || ''}
-                  onChange={(e) => setFilters((f) => ({ ...f, date_from: e.target.value || undefined }))}
-                />
-              </label>
-              <div className="hidden shrink-0 pb-2 text-slate-600 sm:block" aria-hidden>
-                →
-              </div>
-              <label className="flex min-w-0 flex-1 flex-col gap-1">
-                <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Through</span>
-                <input
-                  type="date"
-                  className="input w-full"
-                  min={dateRange?.min}
-                  max={dateRange?.max}
-                  value={(filters.date_to as string) || ''}
-                  onChange={(e) => setFilters((f) => ({ ...f, date_to: e.target.value || undefined }))}
-                />
-              </label>
-            </div>
+          <div className="min-w-0 rounded-lg border border-slate-800/70 bg-slate-950/25 p-3">
+              <MultiSelect
+                label={entityChipKeys[1].label}
+                options={optionsForChip(opts, entityChipKeys[1].optKey, entityChipKeys[1].labeledKey)}
+                value={(filters[entityChipKeys[1].key] as (string | number)[]) || []}
+                onChange={(v) => setFilters((f) => ({ ...f, [entityChipKeys[1].key]: v.length ? v : undefined }))}
+                searchable
+                searchPlaceholder="Search campaigns…"
+                maxChipRows={3}
+              />
           </div>
-        </div>
-
-        <div className="mt-5 space-y-4">
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">Entity scope</div>
-          <p className="text-xs text-slate-500">
-            Narrow in order: advertisers, then their campaigns, then creatives in those campaigns. Lists update as you go.
-          </p>
-
-          {/* Level 1 — advertisers */}
-          <div>
-            <MultiSelect
-              label={entityChipKeys[0].label}
-              options={optionsForChip(opts, entityChipKeys[0].optKey, entityChipKeys[0].labeledKey)}
-              value={(filters[entityChipKeys[0].key] as (string | number)[]) || []}
-              onChange={(v) => setFilters((f) => ({ ...f, [entityChipKeys[0].key]: v.length ? v : undefined }))}
-              searchable
-              searchPlaceholder="Search advertisers…"
-              maxChipRows={3}
-            />
-          </div>
-
-          {/* Level 2 — campaigns (branch under advertisers) */}
-          <div className="relative ml-0 border-l-2 border-slate-700/90 pl-4 sm:ml-1 sm:pl-6">
-            <p className="mb-2 text-[11px] leading-relaxed text-slate-500">
-              Campaigns for the advertisers above (full list when no advertisers are selected).
-            </p>
-            <MultiSelect
-              label={entityChipKeys[1].label}
-              options={optionsForChip(opts, entityChipKeys[1].optKey, entityChipKeys[1].labeledKey)}
-              value={(filters[entityChipKeys[1].key] as (string | number)[]) || []}
-              onChange={(v) => setFilters((f) => ({ ...f, [entityChipKeys[1].key]: v.length ? v : undefined }))}
-              searchable
-              searchPlaceholder="Search campaigns…"
-              maxChipRows={3}
-            />
-
-            {/* Level 3 — creatives (nested under campaigns) */}
-            <div className="relative mt-4 border-l-2 border-slate-600/80 pl-4 sm:pl-6">
-              <p className="mb-2 text-[11px] leading-relaxed text-slate-500">
-                Narrowed by selected campaigns when set; otherwise by selected advertisers; otherwise the full catalog. Each label is
-                campaign name plus creative text (full text, scroll the list if needed).
-              </p>
+          <div className="min-w-0 rounded-lg border border-slate-800/70 bg-slate-950/25 p-3">
               <MultiSelect
                 label={entityChipKeys[2].label}
                 options={optionsForChip(opts, entityChipKeys[2].optKey, entityChipKeys[2].labeledKey)}
@@ -340,15 +231,41 @@ export function PerformancePage() {
                 searchPlaceholder="Search creatives…"
                 maxChipRows={3}
               />
-            </div>
           </div>
         </div>
         <details className="mt-5 rounded-lg border border-slate-800 bg-ink-950/50 p-3">
-          <summary className="cursor-pointer select-none text-sm font-medium text-slate-300">
-            More filters
-            <span className="ml-2 text-xs font-normal text-slate-500">Countries, OS, vertical, and advanced dimensions</span>
-          </summary>
-          <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+          <summary className="cursor-pointer select-none text-sm font-medium text-slate-300">More filters</summary>
+          <div className="mt-3 rounded-lg border border-slate-800/80 bg-slate-950/30 p-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+              <label className="flex min-w-0 flex-1 flex-col gap-1">
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">From</span>
+                <input
+                  type="date"
+                  className="input w-full py-1.5 text-sm"
+                  min={dateRange?.min}
+                  max={dateFromMax}
+                  value={(filters.date_from as string) || ''}
+                  onChange={(e) => handleDateFromInput(e.target.value)}
+                />
+              </label>
+              <span className="hidden pb-2 text-slate-600 sm:inline" aria-hidden>
+                →
+              </span>
+              <label className="flex min-w-0 flex-1 flex-col gap-1">
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">To</span>
+                <input
+                  type="date"
+                  className="input w-full py-1.5 text-sm"
+                  min={dateToMin}
+                  max={dateRange?.max}
+                  value={(filters.date_to as string) || ''}
+                  onChange={(e) => handleDateToInput(e.target.value)}
+                />
+              </label>
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {moreChipKeys.map(({ key, label, optKey, labeledKey }) => (
               <MultiSelect
                 key={String(key)}
@@ -403,6 +320,7 @@ export function PerformancePage() {
 
       {summary ? (
         <>
+          {loading ? <p className="text-xs text-slate-500">Updating…</p> : null}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <MetricCard label="Spend (USD)" value={fmt(summary.total_spend_usd, 0)} />
             <MetricCard label="Impressions" value={fmt(summary.total_impressions, 0)} />
@@ -433,53 +351,6 @@ export function PerformancePage() {
                   <Line yAxisId="r" type="monotone" dataKey="spend_usd" name="Spend" stroke="#a78bfa" dot={false} strokeWidth={2} />
                 </LineChart>
               </ResponsiveContainer>
-            </div>
-          </div>
-
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/30 p-4">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <h3 className="font-display text-sm font-semibold text-white">Creative leaderboard</h3>
-              <div className="flex flex-wrap items-center gap-2">
-                <label className="flex flex-col gap-1">
-                  <span className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">Sort by</span>
-                  <select className="input py-1.5 text-sm" value={lbMetric} onChange={(e) => setLbMetric(e.target.value)} aria-label="Leaderboard sort metric">
-                    <option value="ctr">CTR</option>
-                    <option value="cpa">CPA</option>
-                    <option value="roas">ROAS</option>
-                    <option value="ipm">IPM</option>
-                  </select>
-                </label>
-                {loading ? <span className="text-xs text-slate-500">Updating…</span> : null}
-              </div>
-            </div>
-            <div className="mt-3 overflow-x-auto">
-              <table className="w-full min-w-[480px] text-left text-sm">
-                <thead>
-                  <tr className="border-b border-slate-800 text-slate-500">
-                    <th className="py-2 pr-2">Creative</th>
-                    <th className="py-2">Impressions</th>
-                    <th className="py-2">CTR</th>
-                    <th className="py-2">CPA</th>
-                    <th className="py-2">ROAS</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {lb.map((row) => (
-                    <tr key={String(row.creative_id)} className="border-b border-slate-800/60 text-slate-300">
-                      <td className="py-2">
-                        <div className="max-w-md whitespace-normal break-words text-sm text-slate-200">
-                          {String(row.creative_label || row.creative_id)}
-                        </div>
-                        <div className="font-mono text-[10px] text-slate-500">#{String(row.creative_id)}</div>
-                      </td>
-                      <td className="py-2">{fmt(row.impressions as number, 0)}</td>
-                      <td className="py-2">{fmtPct(row.ctr as number)}</td>
-                      <td className="py-2">{fmt(row.cpa_usd as number)}</td>
-                      <td className="py-2">{fmt(row.roas as number)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
             </div>
           </div>
         </>
