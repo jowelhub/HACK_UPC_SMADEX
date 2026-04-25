@@ -45,7 +45,6 @@ function optionsForChip(
 export function PerformancePage() {
   const [opts, setOpts] = useState<Record<string, unknown> | null>(null)
   const [filters, setFilters] = useState<PerformanceFilters>({})
-  const [loading, setLoading] = useState(false)
   const [err, setErr] = useState<string | null>(null)
   const [data, setData] = useState<Awaited<ReturnType<typeof fetchPerformanceQuery>> | null>(null)
 
@@ -86,7 +85,6 @@ export function PerformancePage() {
 
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
     setErr(null)
     void fetchPerformanceQuery({
       filters,
@@ -99,9 +97,6 @@ export function PerformancePage() {
       })
       .catch((e) => {
         if (!cancelled) setErr(String(e))
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
       })
     return () => {
       cancelled = true
@@ -315,7 +310,6 @@ export function PerformancePage() {
 
       {summary ? (
         <>
-          {loading ? <p className="text-xs text-slate-500">Updating…</p> : null}
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <MetricCard label="Spend (USD)" value={fmt(summary.total_spend_usd, 0)} />
             <MetricCard label="Impressions" value={fmt(summary.total_impressions, 0)} />
