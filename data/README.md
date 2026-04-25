@@ -1,5 +1,7 @@
 # Smadex Creative Intelligence Challenge Dataset
 
+For **full project context** (domain, every CSV column, joins, hackathon goals, how to run the app), see the repository **[README.md](../README.md)** at the repo root.
+
 This is a **fully synthetic** ad-tech dataset created for a hackathon-style "Creative Intelligence" challenge.
 It is intentionally **large enough to feel real**, but still **bounded enough for university teams** to understand in a few minutes.
 
