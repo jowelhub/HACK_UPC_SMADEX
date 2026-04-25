@@ -38,12 +38,7 @@ export function RecommendationsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display text-2xl font-bold tracking-tight text-brand">Recommendations</h1>
-        <p className="mt-1 max-w-3xl text-sm text-stone-600">
-          Actions are on <strong className="font-medium text-stone-800">creatives</strong> (rotate, replace, pause, scale) — not auction
-          slots. <strong className="font-medium text-stone-800">Health</strong> comes from the CTR model on the Fatigue page after you
-          train; until then defaults are neutral. Rotation uses format, theme, hook, color, tone, gameplay, and motion.
-        </p>
+        <h1 className="font-display text-2xl font-semibold tracking-tight text-brand">Recommendations</h1>
       </div>
 
       <div className="flex flex-wrap items-end gap-3 surface-panel !py-4">
@@ -93,7 +88,7 @@ export function RecommendationsPage() {
                 <td className="p-3 text-xs">{r.campaign_id}</td>
                 <td className="p-3">
                   <span
-                    className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-semibold ring-1 ${
+                    className={`inline-flex rounded px-2 py-0.5 text-xs font-medium ring-1 ${
                       actionStyle[r.action] || 'bg-stone-100 text-stone-800 ring-stone-200'
                     }`}
                   >

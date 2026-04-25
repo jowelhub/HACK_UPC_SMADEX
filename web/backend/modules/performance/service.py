@@ -54,19 +54,9 @@ def _creative_display_label(row: pd.Series) -> str:
     return f"Creative {int(row['creative_id'])}"
 
 
-def _composite_creative_label(creative_row: pd.Series, campaigns: pd.DataFrame) -> str:
-    """Campaign display name + creative headline (for chips and leaderboard)."""
-    creative_part = _creative_display_label(creative_row)
-    camp_raw = creative_row.get("campaign_id")
-    if camp_raw is None or (isinstance(camp_raw, float) and pd.isna(camp_raw)):
-        return creative_part
-    camp_id = int(camp_raw)
-    cmatch = campaigns[campaigns["campaign_id"] == camp_id]
-    if len(cmatch) == 0:
-        camp_part = f"Campaign {camp_id}"
-    else:
-        camp_part = _campaign_display_label(cmatch.iloc[0])
-    return f"{camp_part} {creative_part}"
+def _composite_creative_label(creative_row: pd.Series, _campaigns: pd.DataFrame) -> str:
+    """Creative-only label (headline / theme / format); campaign name omitted for clarity."""
+    return _creative_display_label(creative_row)
 
 
 def _labeled_advertisers(advertisers: pd.DataFrame, ids: list[int]) -> list[dict[str, Any]]:

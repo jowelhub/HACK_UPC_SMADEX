@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   Bar,
   BarChart,
@@ -23,6 +23,17 @@ import {
   type PerformanceFilters,
   type PerformanceScope,
 } from '../lib/api'
+
+const ASIDE_W_KEY = 'perfAsideW'
+/** Five campaign rows (~2rem each). */
+const CAMPAIGN_LIST_H = 'h-[10.25rem]'
+/** Six creative rows. */
+const CREATIVE_LIST_H = 'h-[12.25rem]'
+const ROW_MIN = 'min-h-[2rem]'
+/** Space for fixed mobile tab bar + safe area */
+const MOBILE_TAB_PAD = 'pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))]'
+
+type MobilePerfTab = 'selection' | 'results'
 
 function clampIsoDate(ymd: string, min?: string, max?: string): string {
   let v = ymd
@@ -61,12 +72,25 @@ function breakdownForScope(scope: PerformanceScope): string | null {
   return null
 }
 
-function pickListBtn(active: boolean) {
-  return `w-full rounded-xl border px-3 py-2.5 text-left text-sm font-medium transition ${
+function pickListRow(active: boolean) {
+  return `${ROW_MIN} w-full border-b border-stone-100 px-2 py-1 text-left text-[13px] leading-snug transition-colors last:border-b-0 ${
     active
-      ? 'border-brand bg-brand text-white shadow-sm ring-2 ring-brand/20'
-      : 'border-stone-200 bg-white text-stone-800 hover:border-brand/35 hover:bg-stone-50'
+      ? 'border-l-2 border-l-brand bg-brand-50 font-medium text-brand-900'
+      : 'border-l-2 border-l-transparent text-stone-800 hover:bg-stone-50'
   }`
+}
+
+function dashedSlots(count: number) {
+  return Array.from({ length: count }, (_, i) => (
+    <div key={`empty-${i}`} className={`${ROW_MIN} shrink-0 border-b border-dotted border-stone-100`} aria-hidden />
+  ))
+}
+
+function readInitialAsideW(): number {
+  if (typeof window === 'undefined') return 280
+  const raw = localStorage.getItem(ASIDE_W_KEY)
+  const n = raw ? Number(raw) : NaN
+  return Number.isFinite(n) && n >= 200 && n <= 560 ? n : 280
 }
 
 export function PerformancePage() {
@@ -77,6 +101,32 @@ export function PerformancePage() {
   const [err, setErr] = useState<string | null>(null)
   const [data, setData] = useState<Awaited<ReturnType<typeof fetchPerformanceQuery>> | null>(null)
   const [creativeAssetOk, setCreativeAssetOk] = useState(true)
+  const [asideW, setAsideW] = useState(readInitialAsideW)
+  const [isLg, setIsLg] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(min-width: 1024px)').matches : false,
+  )
+  const [mobileTab, setMobileTab] = useState<MobilePerfTab>('selection')
+  const asideWRef = useRef(asideW)
+  const dragRef = useRef<{ pageX: number; startW: number } | null>(null)
+  const mainScrollRef = useRef<HTMLElement>(null)
+
+  asideWRef.current = asideW
+
+  useEffect(() => {
+    if (isLg || mobileTab !== 'results') return
+    mainScrollRef.current?.scrollTo(0, 0)
+  }, [isLg, mobileTab])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const mq = window.matchMedia('(min-width: 1024px)')
+    const fn = () => {
+      setIsLg(mq.matches)
+      if (mq.matches) setMobileTab('selection')
+    }
+    mq.addEventListener('change', fn)
+    return () => mq.removeEventListener('change', fn)
+  }, [])
 
   useEffect(() => {
     void fetchPerformanceHierarchy()
@@ -162,8 +212,8 @@ export function PerformancePage() {
     contentStyle: {
       background: '#ffffff',
       border: '1px solid #e7e5e4',
-      borderRadius: '12px',
-      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.07)',
+      borderRadius: '4px',
+      boxShadow: 'none',
     },
     labelStyle: { color: '#44403c', fontWeight: 600 },
     itemStyle: { color: '#57534e' },
@@ -174,192 +224,252 @@ export function PerformancePage() {
     scope.kind === 'campaign' || scope.kind === 'creative' ? scope.campaignId : null
   const creSelectedId = scope.kind === 'creative' ? scope.creativeId : null
 
+  const startResize = (e: React.MouseEvent) => {
+    e.preventDefault()
+    dragRef.current = { pageX: e.pageX, startW: asideWRef.current }
+    const onMove = (ev: MouseEvent) => {
+      const d = dragRef.current
+      if (!d) return
+      const maxW = Math.min(560, Math.floor(window.innerWidth * 0.45))
+      const w = Math.min(maxW, Math.max(200, d.startW + (ev.pageX - d.pageX)))
+      asideWRef.current = w
+      setAsideW(w)
+    }
+    const onUp = () => {
+      dragRef.current = null
+      try {
+        localStorage.setItem(ASIDE_W_KEY, String(asideWRef.current))
+      } catch {
+        /* ignore */
+      }
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  }
+
+  const campaignRows = selectedAdvertiser?.campaigns ?? []
+  const creativePad = selectedCampaign ? Math.max(0, 6 - creatives.length) : 0
+
+  const showSelection = isLg || mobileTab === 'selection'
+  const showResults = isLg || mobileTab === 'results'
+
   return (
-    <div className="flex min-h-0 w-full flex-1 flex-col overflow-y-auto bg-canvas">
-      <div className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6">
-        <div className="mb-6">
-          <h1 className="font-display text-2xl font-bold tracking-tight text-brand">Performance</h1>
-          <p className="mt-1 max-w-2xl text-sm text-stone-600">
-            Choose <strong className="font-medium text-stone-800">All</strong> or one advertiser, then a campaign and
-            creative. Metrics update for the current selection and date range.
-          </p>
-        </div>
-
-        <section className="mb-6 grid gap-3 md:grid-cols-3" aria-label="Scope selection">
-          <div className="surface-panel flex min-h-[14rem] flex-col gap-2 !py-3 md:max-h-[min(52vh,28rem)] md:overflow-y-auto">
-            <h2 className="text-[10px] font-semibold uppercase tracking-wide text-stone-500">Advertiser</h2>
-            <button type="button" className={pickListBtn(scope.kind === 'all')} onClick={() => setScope({ kind: 'all' })}>
-              All
-            </button>
-            {hierarchy?.map((a) => (
-              <button
-                key={a.advertiser_id}
-                type="button"
-                className={pickListBtn(advSelectedId === a.advertiser_id)}
-                onClick={() => setScope({ kind: 'advertiser', advertiserId: a.advertiser_id })}
-              >
-                {a.label}
-              </button>
-            ))}
-            {!hierarchy?.length && !err ? (
-              <p className="text-xs text-stone-500">Loading advertisers…</p>
-            ) : null}
+    <div className="relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-canvas">
+      <div
+        className={`flex min-h-0 w-full flex-1 flex-col overflow-hidden lg:h-full lg:min-h-0 lg:flex-row lg:items-stretch lg:overflow-hidden ${MOBILE_TAB_PAD} lg:pb-0`}
+      >
+        <aside
+          className={`flex min-h-0 flex-col gap-2 overflow-hidden border-stone-200 bg-canvas px-2 py-3 sm:px-3 lg:h-full lg:min-h-0 lg:max-w-[min(45vw,560px)] lg:shrink-0 lg:border-r lg:bg-white lg:py-4 ${
+            showSelection ? 'flex-1 lg:flex-none' : 'hidden'
+          }`}
+          style={{ width: isLg ? asideW : undefined }}
+          aria-hidden={!showSelection}
+        >
+          <div className="shrink-0 lg:hidden">
+            <h1 className="font-display text-lg font-semibold tracking-tight text-stone-900">Performance</h1>
           </div>
 
-          <div
-            className={`surface-panel flex min-h-[14rem] flex-col gap-2 !py-3 md:max-h-[min(52vh,28rem)] md:overflow-y-auto ${
-              !selectedAdvertiser ? 'opacity-60' : ''
-            }`}
-          >
-            <h2 className="text-[10px] font-semibold uppercase tracking-wide text-stone-500">Campaign</h2>
-            {!selectedAdvertiser ? (
-              <p className="text-sm text-stone-500">Select an advertiser to list campaigns.</p>
-            ) : (
-              selectedAdvertiser.campaigns.map((c) => (
-                <button
-                  key={c.campaign_id}
-                  type="button"
-                  disabled={!selectedAdvertiser}
-                  className={pickListBtn(campSelectedId === c.campaign_id)}
-                  onClick={() =>
-                    setScope({
-                      kind: 'campaign',
-                      advertiserId: selectedAdvertiser.advertiser_id,
-                      campaignId: c.campaign_id,
-                    })
-                  }
-                >
-                  {c.label}
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-sm border border-stone-200 bg-white">
+            <div className="shrink-0 space-y-2 border-b border-stone-200 p-2">
+              <div className="grid grid-cols-2 gap-2">
+                <label className="flex flex-col gap-0.5">
+                  <span className="text-[10px] font-medium uppercase text-stone-500">From</span>
+                  <input
+                    type="date"
+                    className="input w-full text-xs"
+                    min={dateRange?.min}
+                    max={dates.to && dateRange?.max ? clampIsoDate(dates.to, dateRange.min, dateRange.max) : dateRange?.max}
+                    value={dates.from}
+                    onChange={(e) => {
+                      const raw = e.target.value
+                      if (!dateRange?.min || !dateRange?.max) return
+                      const from = raw ? clampIsoDate(raw, dateRange.min, dateRange.max) : dateRange.min
+                      let to = dates.to || dateRange.max
+                      to = clampIsoDate(to, dateRange.min, dateRange.max)
+                      if (from > to) setDates({ from, to: from })
+                      else setDates({ from, to })
+                    }}
+                  />
+                </label>
+                <label className="flex flex-col gap-0.5">
+                  <span className="text-[10px] font-medium uppercase text-stone-500">To</span>
+                  <input
+                    type="date"
+                    className="input w-full text-xs"
+                    min={
+                      dates.from && dateRange?.min
+                        ? clampIsoDate(dates.from, dateRange.min, dateRange.max)
+                        : dateRange?.min
+                    }
+                    max={dateRange?.max}
+                    value={dates.to}
+                    onChange={(e) => {
+                      const raw = e.target.value
+                      if (!dateRange?.min || !dateRange?.max) return
+                      const to = raw ? clampIsoDate(raw, dateRange.min, dateRange.max) : dateRange.max
+                      let from = dates.from || dateRange.min
+                      from = clampIsoDate(from, dateRange.min, dateRange.max)
+                      if (to < from) setDates({ from: to, to })
+                      else setDates({ from, to })
+                    }}
+                  />
+                </label>
+              </div>
+            </div>
+
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col border-b border-stone-200">
+              <div className="shrink-0 border-b border-stone-100 bg-stone-50 px-2 py-1 text-[10px] font-medium uppercase text-stone-600">
+                Advertiser
+              </div>
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [-webkit-overflow-scrolling:touch]">
+                <button type="button" className={pickListRow(scope.kind === 'all')} onClick={() => setScope({ kind: 'all' })}>
+                  All
                 </button>
-              ))
-            )}
-          </div>
+                {hierarchy?.map((a) => (
+                  <button
+                    key={a.advertiser_id}
+                    type="button"
+                    className={pickListRow(advSelectedId === a.advertiser_id)}
+                    onClick={() => setScope({ kind: 'advertiser', advertiserId: a.advertiser_id })}
+                  >
+                    {a.label}
+                  </button>
+                ))}
+                {!hierarchy?.length && !err ? <p className="px-2 py-2 text-xs text-stone-500">Loading…</p> : null}
+              </div>
+            </div>
 
-          <div
-            className={`surface-panel flex min-h-[14rem] flex-col gap-2 !py-3 md:max-h-[min(52vh,28rem)] md:overflow-y-auto ${
-              !selectedCampaign ? 'opacity-60' : ''
-            }`}
-          >
-            <h2 className="text-[10px] font-semibold uppercase tracking-wide text-stone-500">Creative</h2>
-            {!selectedCampaign ? (
-              <p className="text-sm text-stone-500">Select a campaign to list creatives.</p>
-            ) : (
-              creatives.map((cr) => (
-                <button
-                  key={cr.creative_id}
-                  type="button"
-                  className={pickListBtn(creSelectedId === cr.creative_id)}
-                  onClick={() => {
-                    if (!selectedAdvertiser) return
-                    setScope({
-                      kind: 'creative',
-                      advertiserId: selectedAdvertiser.advertiser_id,
-                      campaignId: selectedCampaign.campaign_id,
-                      creativeId: cr.creative_id,
-                    })
-                  }}
-                >
-                  {cr.label}
-                </button>
-              ))
-            )}
-          </div>
-        </section>
+            <div className={`flex shrink-0 flex-col ${!selectedAdvertiser ? 'opacity-50' : ''}`}>
+              <div className="shrink-0 border-b border-stone-100 bg-stone-50 px-2 py-1 text-[10px] font-medium uppercase text-stone-600">
+                Campaign
+              </div>
+              <div className={`flex flex-col overflow-y-auto overscroll-contain ${CAMPAIGN_LIST_H}`}>
+                {!selectedAdvertiser ? (
+                  dashedSlots(5)
+                ) : campaignRows.length === 0 ? (
+                  dashedSlots(5)
+                ) : (
+                  campaignRows.map((c) => (
+                    <button
+                      key={c.campaign_id}
+                      type="button"
+                      className={pickListRow(campSelectedId === c.campaign_id)}
+                      onClick={() =>
+                        setScope({
+                          kind: 'campaign',
+                          advertiserId: selectedAdvertiser.advertiser_id,
+                          campaignId: c.campaign_id,
+                        })
+                      }
+                    >
+                      {c.label}
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
 
-        <section className="surface-panel mb-6 !py-3">
-          <div className="flex min-w-0 flex-wrap items-end gap-3">
-            <label className="flex min-w-[9rem] flex-1 flex-col gap-1">
-              <span className="text-[10px] font-semibold uppercase tracking-wide text-stone-500">From</span>
-              <input
-                type="date"
-                className="input w-full py-1.5 text-sm"
-                min={dateRange?.min}
-                max={dates.to && dateRange?.max ? clampIsoDate(dates.to, dateRange.min, dateRange.max) : dateRange?.max}
-                value={dates.from}
-                onChange={(e) => {
-                  const raw = e.target.value
-                  if (!dateRange?.min || !dateRange?.max) return
-                  const from = raw ? clampIsoDate(raw, dateRange.min, dateRange.max) : dateRange.min
-                  let to = dates.to || dateRange.max
-                  to = clampIsoDate(to, dateRange.min, dateRange.max)
-                  if (from > to) setDates({ from, to: from })
-                  else setDates({ from, to })
-                }}
-              />
-            </label>
-            <label className="flex min-w-[9rem] flex-1 flex-col gap-1">
-              <span className="text-[10px] font-semibold uppercase tracking-wide text-stone-500">To</span>
-              <input
-                type="date"
-                className="input w-full py-1.5 text-sm"
-                min={dates.from && dateRange?.min ? clampIsoDate(dates.from, dateRange.min, dateRange.max) : dateRange?.min}
-                max={dateRange?.max}
-                value={dates.to}
-                onChange={(e) => {
-                  const raw = e.target.value
-                  if (!dateRange?.min || !dateRange?.max) return
-                  const to = raw ? clampIsoDate(raw, dateRange.min, dateRange.max) : dateRange.max
-                  let from = dates.from || dateRange.min
-                  from = clampIsoDate(from, dateRange.min, dateRange.max)
-                  if (to < from) setDates({ from: to, to })
-                  else setDates({ from, to })
-                }}
-              />
-            </label>
+            <div className={`flex shrink-0 flex-col ${!selectedCampaign ? 'opacity-50' : ''}`}>
+              <div className="shrink-0 border-b border-stone-100 bg-stone-50 px-2 py-1 text-[10px] font-medium uppercase text-stone-600">
+                Creative
+              </div>
+              <div className={`flex flex-col overflow-y-auto overscroll-contain ${CREATIVE_LIST_H}`}>
+                {!selectedCampaign ? (
+                  dashedSlots(6)
+                ) : (
+                  <>
+                    {creatives.map((cr) => (
+                      <button
+                        key={cr.creative_id}
+                        type="button"
+                        className={pickListRow(creSelectedId === cr.creative_id)}
+                        onClick={() => {
+                          if (!selectedAdvertiser) return
+                          setScope({
+                            kind: 'creative',
+                            advertiserId: selectedAdvertiser.advertiser_id,
+                            campaignId: selectedCampaign.campaign_id,
+                            creativeId: cr.creative_id,
+                          })
+                        }}
+                      >
+                        {cr.label}
+                      </button>
+                    ))}
+                    {dashedSlots(creativePad)}
+                  </>
+                )}
+              </div>
+            </div>
           </div>
-        </section>
+        </aside>
+
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Resize scope panel"
+          onMouseDown={startResize}
+          className="hidden w-1.5 shrink-0 cursor-col-resize select-none self-stretch bg-stone-200/70 hover:bg-brand/30 active:bg-brand/40 lg:block lg:min-h-0"
+        />
+
+        <main
+          ref={mainScrollRef}
+          className={`min-h-0 min-w-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 sm:px-6 lg:block lg:h-full lg:min-h-0 lg:max-h-full lg:overflow-y-auto lg:overflow-x-hidden ${
+            showResults ? 'block' : 'hidden'
+          }`}
+          aria-hidden={!showResults}
+        >
+          <div className="mb-3 lg:hidden">
+            <h2 className="text-lg font-semibold text-stone-900">Results</h2>
+          </div>
+          <div className="mb-4 hidden lg:block">
+            <h1 className="text-xl font-semibold text-stone-900">Performance</h1>
+          </div>
 
         {err ? <p className="mb-4 text-sm text-red-600">{err}</p> : null}
 
         {summary ? (
           <>
-            <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mb-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <MetricCard label="Spend (USD)" value={fmt(summary.total_spend_usd, 0)} />
               <MetricCard label="Impressions" value={fmt(summary.total_impressions, 0)} />
               <MetricCard label="Clicks" value={fmt(summary.total_clicks as number, 0)} />
               <MetricCard label="Conversions" value={fmt(summary.total_conversions as number, 0)} />
               <MetricCard label="Revenue (USD)" value={fmt(summary.total_revenue_usd as number, 0)} />
-              <MetricCard
-                label="Viewability"
-                value={fmtPct(summary.overall_viewability_rate as number)}
-                hint="Viewable imps / imps"
-              />
-              <MetricCard label="CTR" value={fmtPct(summary.overall_ctr as number)} hint="Clicks / impressions" />
-              <MetricCard label="CPA (USD)" value={fmt(summary.overall_cpa_usd as number)} hint="Spend / conversions" />
+              <MetricCard label="Viewability" value={fmtPct(summary.overall_viewability_rate as number)} />
+              <MetricCard label="CTR" value={fmtPct(summary.overall_ctr as number)} />
+              <MetricCard label="CPA (USD)" value={fmt(summary.overall_cpa_usd as number)} />
               <MetricCard label="CVR" value={fmtPct(summary.overall_cvr as number)} />
-              <MetricCard label="IPM" value={fmt(summary.overall_ipm as number)} hint="Conv per 1k imps" />
+              <MetricCard label="IPM" value={fmt(summary.overall_ipm as number)} />
               <MetricCard label="ROAS" value={fmt(summary.overall_roas as number)} />
               <MetricCard
-                label="Rows / entities"
-                value={`${fmt(data?.row_count, 0)} rows`}
-                hint={`${summary.distinct_creatives} creatives | ${summary.distinct_campaigns} campaigns | ${Number(summary.distinct_advertisers ?? 0)} advertisers | ${summary.calendar_days_in_window} days`}
+                label="Rows"
+                value={fmt(data?.row_count, 0)}
+                hint={`${summary.distinct_creatives} cr · ${summary.distinct_campaigns} camp · ${Number(summary.distinct_advertisers ?? 0)} adv`}
               />
             </div>
 
             {scope.kind === 'creative' ? (
-              <div className="surface-panel mb-5 flex flex-col items-center gap-3 sm:flex-row sm:items-start">
-                <div className="flex min-h-[10rem] min-w-[8rem] shrink-0 items-center justify-center overflow-hidden rounded-xl border border-stone-200 bg-stone-50 shadow-sm">
+              <div className="mb-5 flex justify-center border border-stone-200 bg-white p-3">
+                <div className="flex min-h-[8rem] max-w-full items-center justify-center">
                   {creativeAssetOk ? (
                     <img
                       src={creativeAssetUrl(scope.creativeId)}
-                      alt="Creative asset"
-                      className="max-h-56 w-auto max-w-full object-contain"
+                      alt="Creative"
+                      className="max-h-52 w-auto object-contain"
                       onError={() => setCreativeAssetOk(false)}
                     />
                   ) : (
-                    <span className="px-4 text-center text-xs text-stone-500">No image file on server for this creative.</span>
+                    <span className="text-xs text-stone-500">No image</span>
                   )}
                 </div>
-                <p className="text-center text-xs text-stone-600 sm:text-left">
-                  Preview loads from the import bundle when the PNG exists on the API host (
-                  <code className="rounded bg-stone-100 px-1">IMPORT_DATA_DIR</code>).
-                </p>
               </div>
             ) : null}
 
             <div className="surface-panel mb-5">
-              <h3 className="font-display text-sm font-semibold text-brand">CTR & spend over time</h3>
-              <p className="mt-0.5 text-xs text-stone-600">Daily totals for the current scope.</p>
+              <h3 className="text-sm font-semibold text-stone-900">CTR & spend</h3>
               <div className="mt-3 h-64 sm:h-72">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={ts}>
@@ -400,10 +510,9 @@ export function PerformancePage() {
 
             {barData.length > 0 ? (
               <div className="surface-panel">
-                <h3 className="font-display text-sm font-semibold text-brand">
+                <h3 className="text-sm font-semibold text-stone-900">
                   {scope.kind === 'advertiser' ? 'Spend by campaign' : 'Spend by creative'}
                 </h3>
-                <p className="mt-0.5 text-xs text-stone-600">Top slices in this scope (by spend).</p>
                 <div className="mt-3 h-72">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={barData} layout="vertical" margin={{ left: 8, right: 16, top: 8, bottom: 8 }}>
@@ -417,7 +526,7 @@ export function PerformancePage() {
                         interval={0}
                       />
                       <Tooltip {...chartTooltip} formatter={(v) => [fmt(Number(v), 0), 'Spend (USD)']} />
-                      <Bar dataKey="spend" name="Spend (USD)" fill="#7c3aad" radius={[0, 6, 6, 0]} />
+                      <Bar dataKey="spend" name="Spend (USD)" fill="#7c3aad" radius={[0, 2, 2, 0]} />
                     </BarChart>
                   </ResponsiveContainer>
                 </div>
@@ -427,7 +536,32 @@ export function PerformancePage() {
         ) : (
           <p className="text-sm text-stone-500">Loading metrics…</p>
         )}
+        </main>
       </div>
+
+      <nav
+        className="fixed bottom-0 left-0 right-0 z-40 flex justify-center gap-2 border-t border-stone-200 bg-white/95 px-3 py-2.5 shadow-[0_-4px_16px_rgba(0,0,0,0.06)] backdrop-blur-md supports-[padding:max(0px)]:pb-[max(10px,env(safe-area-inset-bottom))] lg:hidden"
+        aria-label="Performance view"
+      >
+        <button
+          type="button"
+          onClick={() => setMobileTab('selection')}
+          className={`min-h-10 min-w-[44%] max-w-[11rem] rounded border px-3 text-sm font-medium transition ${
+            mobileTab === 'selection' ? 'border-brand bg-brand text-white' : 'border-stone-200 bg-white text-stone-700'
+          }`}
+        >
+          Selection
+        </button>
+        <button
+          type="button"
+          onClick={() => setMobileTab('results')}
+          className={`min-h-10 min-w-[44%] max-w-[11rem] rounded border px-3 text-sm font-medium transition ${
+            mobileTab === 'results' ? 'border-brand bg-brand text-white' : 'border-stone-200 bg-white text-stone-700'
+          }`}
+        >
+          Results
+        </button>
+      </nav>
     </div>
   )
 }

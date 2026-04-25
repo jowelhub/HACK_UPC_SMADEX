@@ -9,8 +9,8 @@ const nav = [
 export function Layout() {
   const loc = useLocation()
   return (
-    <div className="flex min-h-full flex-col">
-      <header className="sticky top-0 z-20 border-b border-stone-200/90 bg-white/95 backdrop-blur">
+    <div className="flex h-full min-h-0 flex-col">
+      <header className="sticky top-0 z-20 shrink-0 border-b border-stone-200/90 bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-3.5 sm:px-6">
           <Link to="/" className="font-display text-lg font-semibold tracking-tight text-stone-900">
             Smadex <span className="font-medium text-brand">Creative Lab</span>
@@ -20,9 +20,9 @@ export function Layout() {
               <Link
                 key={n.to}
                 to={n.to}
-                className={`rounded-full px-3.5 py-2 transition ${
+                className={`rounded-md px-3 py-1.5 text-sm transition ${
                   loc.pathname === n.to
-                    ? 'bg-brand-50 text-brand shadow-sm ring-1 ring-brand/15'
+                    ? 'bg-brand-50 font-medium text-brand'
                     : 'text-stone-600 hover:bg-stone-100 hover:text-brand'
                 }`}
               >
@@ -35,15 +35,12 @@ export function Layout() {
       <main
         className={
           loc.pathname === '/performance'
-            ? 'flex min-h-0 w-full flex-1 flex-col px-0 py-0'
-            : 'mx-auto w-full max-w-7xl flex-1 px-4 py-8 sm:px-6'
+            ? 'flex min-h-0 w-full flex-1 flex-col overflow-hidden px-0 py-0'
+            : 'mx-auto w-full max-w-7xl min-h-0 flex-1 overflow-y-auto px-4 py-8 sm:px-6'
         }
       >
         <Outlet />
       </main>
-      <footer className="border-t border-stone-200 py-5 text-center text-xs text-stone-500">
-        Synthetic dataset · v1 baseline · local API <code className="rounded bg-stone-100 px-1.5 py-0.5 text-stone-600">/api</code>
-      </footer>
     </div>
   )
 }

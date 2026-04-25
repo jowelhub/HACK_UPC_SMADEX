@@ -7,16 +7,18 @@ import { RecommendationsPage } from './pages/RecommendationsPage'
 
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route element={<Layout />}>
-          <Route index element={<Dashboard />} />
-          <Route path="performance" element={<PerformancePage />} />
-          <Route path="fatigue" element={<FatiguePage />} />
-          <Route path="recommendations" element={<RecommendationsPage />} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+    <div className="h-full min-h-0">
+      <BrowserRouter>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route index element={<Dashboard />} />
+            <Route path="performance" element={<PerformancePage />} />
+            <Route path="fatigue" element={<FatiguePage />} />
+            <Route path="recommendations" element={<RecommendationsPage />} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </div>
   )
 }

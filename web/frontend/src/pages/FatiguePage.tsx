@@ -162,24 +162,13 @@ export function FatiguePage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display text-2xl font-bold tracking-tight text-brand">Fatigue detection (ML)</h1>
-        <p className="mt-1 max-w-3xl text-sm text-stone-600">
-          Only <span className="font-medium text-stone-800">LightGBM + Optuna</span>: next-day smoothed CTR from the prior 7
-          calendar days of delivery (rolled up globally per creative per day) plus static fields from{' '}
-          <code className="rounded bg-brand-50 px-1.5 py-0.5 text-xs font-medium text-brand">creatives</code>. Train in the browser (SSE), then compare actual vs predicted CTR
-          over <code className="rounded bg-stone-100 px-1.5 py-0.5 text-xs text-stone-700">days_since_launch</code> — divergence suggests drift / fatigue relative to
-          what the model learned.
-        </p>
+        <h1 className="font-display text-2xl font-semibold tracking-tight text-brand">Fatigue</h1>
       </div>
 
       <section className="surface-panel">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h2 className="font-display text-lg font-semibold text-brand">CTR model training</h2>
-            <p className="mt-1 max-w-2xl text-xs text-stone-600">
-              Optuna minimizes mean CV RMSE. Holdout creatives for final test RMSE / MAE / R². Trials: 1–100 · CV splits:
-              1–10.
-            </p>
+            <h2 className="text-base font-semibold text-stone-900">CTR model</h2>
           </div>
           <div className="flex flex-wrap items-end gap-3">
             <div>
@@ -228,7 +217,7 @@ export function FatiguePage() {
             {mlStatus.n_features ?? 0} features
           </p>
         ) : (
-          <p className="mt-3 text-xs text-stone-600">Train once to enable CTR curves and recommendation health scores.</p>
+          <p className="mt-3 text-xs text-stone-600">Train to load curves.</p>
         )}
 
         {splitInfo ? (
@@ -239,7 +228,7 @@ export function FatiguePage() {
         ) : null}
 
         {streamLog.length > 0 ? (
-          <div className="mt-3 max-h-28 overflow-y-auto rounded-xl border border-stone-200 bg-stone-50 p-2 font-mono text-[11px] text-stone-700">
+          <div className="mt-3 max-h-28 overflow-y-auto rounded border border-stone-200 bg-stone-50 p-2 font-mono text-[11px] text-stone-700">
             {streamLog.map((line, i) => (
               <div key={i}>{line}</div>
             ))}
@@ -247,7 +236,7 @@ export function FatiguePage() {
         ) : null}
 
         {optunaTrials.length > 0 ? (
-          <div className="mt-4 max-h-56 overflow-auto rounded-xl border border-stone-200">
+          <div className="mt-4 max-h-56 overflow-auto rounded border border-stone-200">
             <table className="w-full text-left text-[11px] text-stone-700">
               <thead className="sticky top-0 bg-stone-50 text-stone-500">
                 <tr>
@@ -326,27 +315,19 @@ export function FatiguePage() {
 
       <div className="surface-panel">
         {selected == null ? (
-          <p className="text-sm text-stone-600">Enter a creative ID and load the chart.</p>
+          <p className="text-sm text-stone-600">Creative ID + Load chart.</p>
         ) : !mlStatus?.trained ? (
           <p className="text-sm text-stone-600">
-            Creative <span className="font-mono font-medium text-brand">{selected}</span> — train the model above to see actual vs
-            predicted CTR.
+            <span className="font-mono text-brand">{selected}</span> — train first.
           </p>
         ) : mlSeries.length === 0 ? (
           <p className="text-sm text-stone-600">
-            No ML points for creative <span className="font-mono font-medium text-brand">{selected}</span> (needs enough history
-            after global daily rollup).
+            No points for <span className="font-mono text-brand">{selected}</span>.
           </p>
         ) : (
           <>
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <h2 className="font-display text-lg font-semibold text-brand">Creative {selected}</h2>
-              <span className="text-xs text-stone-500">x = days since launch · teacher-forcing on prior 7 days</span>
-            </div>
-            <p className="mt-1 text-xs text-stone-600">
-              Smoothed CTR target vs model output per day. Wider gaps → harder to predict (often fatigue or mix shifts).
-            </p>
-            <div className="mt-4 h-80">
+            <h2 className="text-base font-semibold text-stone-900">Creative {selected}</h2>
+            <div className="mt-3 h-80">
               <ResponsiveContainer width="100%" height="100%">
                 <LineChart data={mlSeries}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
@@ -356,8 +337,8 @@ export function FatiguePage() {
                     contentStyle={{
                       background: '#ffffff',
                       border: '1px solid #e7e5e4',
-                      borderRadius: '12px',
-                      boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.07)',
+                      borderRadius: '4px',
+                      boxShadow: 'none',
                     }}
                     labelStyle={{ color: '#44403c', fontWeight: 600 }}
                     itemStyle={{ color: '#57534e' }}
