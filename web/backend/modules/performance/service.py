@@ -326,11 +326,18 @@ def _build_hierarchy(store: DataStore) -> list[dict[str, Any]]:
                     "is_fatigued": st == "fatigued",
                 }
                 crlist.append(cr_entry)
+            kg = c.get("kpi_goal")
+            kpi_s: str | None
+            if kg is None or (isinstance(kg, float) and pd.isna(kg)):
+                kpi_s = None
+            else:
+                kpi_s = str(kg).strip() or None
             camp_entry: dict[str, Any] = {
                 "campaign_id": cid,
                 "slug": cslug,
                 "label": clabel,
                 "creatives": crlist,
+                "kpi_goal": kpi_s,
             }
             camp_list.append(camp_entry)
         out.append(

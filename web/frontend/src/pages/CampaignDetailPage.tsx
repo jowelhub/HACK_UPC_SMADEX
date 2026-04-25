@@ -87,6 +87,8 @@ export function CampaignDetailPage() {
           err={err}
           breakdownTitle={BREAKDOWN_CHART_TITLE.byCreative}
           compactMetrics
+          lockDailySeriesToKpiGoal
+          kpiGoal={campaign.kpi_goal ?? null}
         />
         <LlmInsightPanel context={insightContext} performanceError={err} />
       </div>

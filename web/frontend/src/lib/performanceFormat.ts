@@ -68,6 +68,18 @@ export function otherMetricKey(exclude: MetricKey): MetricKey {
   return METRIC_OPTIONS.find((m) => m.key !== exclude)?.key ?? 'spend_usd'
 }
 
+/** Map campaign `kpi_goal` text to a daily-timeseries metric (dataset uses CPA, CTR, IPM, ROAS). */
+export function timeseriesMetricFromKpiGoal(raw: string | null | undefined): MetricKey {
+  const s = (raw ?? '').trim().toUpperCase()
+  if (!s) return 'cpa_usd'
+  if (s.includes('CPA') || s.includes('CPI') || s.includes('COST PER')) return 'cpa_usd'
+  if (s.includes('CTR')) return 'ctr'
+  if (s.includes('CVR')) return 'cvr'
+  if (s.includes('IPM')) return 'ipm'
+  if (s.includes('ROAS') || s.includes('ROI')) return 'roas'
+  return 'cpa_usd'
+}
+
 export const chartTooltipStyle = {
   contentStyle: {
     background: '#ffffff',

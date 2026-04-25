@@ -22,6 +22,7 @@ import {
   metricLabel,
   METRIC_OPTIONS,
   otherMetricKey,
+  timeseriesMetricFromKpiGoal,
   type MetricKey,
 } from '../lib/performanceFormat'
 
@@ -32,12 +33,28 @@ type Props = {
   breakdownTitle: string | null
   /** Tighter KPI grid when daily series sits beside it (lg+). */
   compactMetrics?: boolean
+  /** Campaign page: daily series follows `kpi_goal` (no Y1/Y2 selectors). */
+  lockDailySeriesToKpiGoal?: boolean
+  /** Raw `kpi_goal` from hierarchy (e.g. CPA, ROAS); used when `lockDailySeriesToKpiGoal`. */
+  kpiGoal?: string | null
 }
 
-export function PerformanceResultPanels({ data, err, breakdownTitle, compactMetrics }: Props) {
+export function PerformanceResultPanels({
+  data,
+  err,
+  breakdownTitle,
+  compactMetrics,
+  lockDailySeriesToKpiGoal,
+  kpiGoal,
+}: Props) {
   const [barMetric, setBarMetric] = useState<MetricKey>('spend_usd')
   const [tsLeft, setTsLeft] = useState<MetricKey>('ctr')
   const [tsRight, setTsRight] = useState<MetricKey>('spend_usd')
+
+  const kpiTimeseriesMetric = useMemo(
+    () => timeseriesMetricFromKpiGoal(lockDailySeriesToKpiGoal ? kpiGoal : undefined),
+    [lockDailySeriesToKpiGoal, kpiGoal],
+  )
 
   const summary = data?.summary
   const ts = data?.timeseries ?? []
@@ -59,7 +76,69 @@ export function PerformanceResultPanels({ data, err, breakdownTitle, compactMetr
   const topRowSplit = hasTimeseries
   const compact = Boolean(compactMetrics && topRowSplit)
 
-  const dailySeriesPanel = (
+  const kpiGoalLabel = (kpiGoal && String(kpiGoal).trim()) || 'CPA'
+  const kpiLineName = metricLabel(kpiTimeseriesMetric)
+  const spendLineName = metricLabel('spend_usd')
+
+  const dailySeriesPanel = lockDailySeriesToKpiGoal ? (
+    <div className="surface-panel flex min-h-0 min-w-0 flex-1 flex-col">
+      <div className="mb-2 flex min-w-0 flex-col gap-1">
+        <h3 className="text-sm font-semibold text-stone-900">Daily series</h3>
+        <p className="text-xs text-stone-600">
+          KPI goal: <span className="font-medium text-stone-800">{kpiGoalLabel}</span>
+        </p>
+      </div>
+      <div className="mt-1 h-[min(16rem,42dvh)] min-h-[12rem] w-full min-w-0 flex-1 sm:h-[min(18rem,40dvh)] lg:h-[min(20rem,44dvh)] xl:h-80">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart data={ts}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
+            <XAxis dataKey="date" tick={{ fill: '#78716c', fontSize: 11 }} />
+            <YAxis
+              yAxisId="kpi"
+              tick={{ fill: '#6b21a8', fontSize: 11 }}
+              tickFormatter={(v) => formatMetricTick(kpiTimeseriesMetric, Number(v))}
+            />
+            <YAxis
+              yAxisId="spend"
+              orientation="right"
+              tick={{ fill: '#0f766e', fontSize: 11 }}
+              tickFormatter={(v) => formatMetricTick('spend_usd', Number(v))}
+            />
+            <Tooltip
+              {...chartTooltipStyle}
+              formatter={(value, name) => {
+                if (value === undefined || value === null) return ['-', String(name)]
+                const num = typeof value === 'number' ? value : Number(value)
+                if (Number.isNaN(num)) return ['-', String(name)]
+                const label = String(name)
+                if (label === spendLineName) return [formatMetricValue('spend_usd', num), spendLineName]
+                return [formatMetricValue(kpiTimeseriesMetric, num), kpiLineName]
+              }}
+            />
+            <Legend />
+            <Line
+              yAxisId="kpi"
+              type="monotone"
+              dataKey={kpiTimeseriesMetric}
+              name={kpiLineName}
+              stroke="#7c3aad"
+              dot={false}
+              strokeWidth={2}
+            />
+            <Line
+              yAxisId="spend"
+              type="monotone"
+              dataKey="spend_usd"
+              name={spendLineName}
+              stroke="#0d9488"
+              dot={false}
+              strokeWidth={2}
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
+    </div>
+  ) : (
     <div className="surface-panel flex min-h-0 min-w-0 flex-1 flex-col">
       <div className="mb-2 flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <h3 className="text-sm font-semibold text-stone-900">Daily series</h3>

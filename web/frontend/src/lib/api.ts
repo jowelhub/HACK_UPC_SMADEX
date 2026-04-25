@@ -31,6 +31,8 @@ export type HierarchyCampaign = {
   campaign_id: number
   slug: string
   label: string
+  /** Campaign optimization goal from merged campaigns (e.g. CPA, ROAS). */
+  kpi_goal?: string | null
   creatives: HierarchyCreative[]
 }
 export type HierarchyAdvertiser = {
