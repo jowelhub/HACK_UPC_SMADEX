@@ -12,6 +12,7 @@ import {
   YAxis,
 } from 'recharts'
 import { MetricCard } from './MetricCard'
+import { ResponsiveChartWrapper } from './ResponsiveChartWrapper'
 import type { PerformanceQueryResponse } from '../lib/api'
 import {
   chartTooltipStyle,
@@ -141,66 +142,68 @@ export function PerformanceResultPanels({
         </p>
       </div>
       <div className="mt-1 h-[min(16rem,42dvh)] min-h-[12rem] w-full min-w-0 flex-1 sm:h-[min(18rem,40dvh)] lg:h-[min(20rem,44dvh)] xl:h-80">
-        <ResponsiveContainer width="99%" height="100%">
-          <LineChart data={tsChartData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
-            <XAxis
-              dataKey="day_index"
-              tick={{ fill: '#78716c', fontSize: 11 }}
-              allowDecimals={false}
-              minTickGap={10}
-            />
-            <YAxis
-              yAxisId="kpi"
-              tick={{ fill: '#6b21a8', fontSize: 11 }}
-              tickFormatter={(v) => formatMetricTick(kpiTimeseriesMetric, Number(v))}
-            />
-            <YAxis
-              yAxisId="spend"
-              orientation="right"
-              tick={{ fill: '#0f766e', fontSize: 11 }}
-              tickFormatter={(v) => formatMetricTick('spend_usd', Number(v))}
-            />
-            <Tooltip
-              {...chartTooltipStyle}
-              labelFormatter={(_: unknown, payload: readonly { payload?: { date?: string; day_index?: number } }[] | undefined) => {
-                const row = payload?.[0]?.payload as { date?: string; day_index?: number } | undefined
-                const d = row?.date != null ? String(row.date) : null
-                const day = row?.day_index
-                if (d && day != null) return `Day ${day} · ${d}`
-                if (day != null) return `Day ${day}`
-                return ''
-              }}
-              formatter={(value: unknown, name: unknown) => {
-                if (value === undefined || value === null) return ['-', String(name)]
-                const num = typeof value === 'number' ? value : Number(value)
-                if (Number.isNaN(num)) return ['-', String(name)]
-                const label = String(name)
-                if (label === spendLineName) return [formatMetricValue('spend_usd', num), spendLineName]
-                return [formatMetricValue(kpiTimeseriesMetric, num), kpiLineName]
-              }}
-            />
-            <Legend />
-            <Line
-              yAxisId="kpi"
-              type="monotone"
-              dataKey={kpiTimeseriesMetric}
-              name={kpiLineName}
-              stroke="#7c3aad"
-              dot={false}
-              strokeWidth={2}
-            />
-            <Line
-              yAxisId="spend"
-              type="monotone"
-              dataKey="spend_usd"
-              name={spendLineName}
-              stroke="#0d9488"
-              dot={false}
-              strokeWidth={2}
-            />
-          </LineChart>
-        </ResponsiveContainer>
+        <ResponsiveChartWrapper>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={tsChartData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
+              <XAxis
+                dataKey="day_index"
+                tick={{ fill: '#78716c', fontSize: 11 }}
+                allowDecimals={false}
+                minTickGap={10}
+              />
+              <YAxis
+                yAxisId="kpi"
+                tick={{ fill: '#6b21a8', fontSize: 11 }}
+                tickFormatter={(v) => formatMetricTick(kpiTimeseriesMetric, Number(v))}
+              />
+              <YAxis
+                yAxisId="spend"
+                orientation="right"
+                tick={{ fill: '#0f766e', fontSize: 11 }}
+                tickFormatter={(v) => formatMetricTick('spend_usd', Number(v))}
+              />
+              <Tooltip
+                {...chartTooltipStyle}
+                labelFormatter={(_: unknown, payload: readonly { payload?: { date?: string; day_index?: number } }[] | undefined) => {
+                  const row = payload?.[0]?.payload as { date?: string; day_index?: number } | undefined
+                  const d = row?.date != null ? String(row.date) : null
+                  const day = row?.day_index
+                  if (d && day != null) return `Day ${day} · ${d}`
+                  if (day != null) return `Day ${day}`
+                  return ''
+                }}
+                formatter={(value: unknown, name: unknown) => {
+                  if (value === undefined || value === null) return ['-', String(name)]
+                  const num = typeof value === 'number' ? value : Number(value)
+                  if (Number.isNaN(num)) return ['-', String(name)]
+                  const label = String(name)
+                  if (label === spendLineName) return [formatMetricValue('spend_usd', num), spendLineName]
+                  return [formatMetricValue(kpiTimeseriesMetric, num), kpiLineName]
+                }}
+              />
+              <Legend />
+              <Line
+                yAxisId="kpi"
+                type="monotone"
+                dataKey={kpiTimeseriesMetric}
+                name={kpiLineName}
+                stroke="#7c3aad"
+                dot={false}
+                strokeWidth={2}
+              />
+              <Line
+                yAxisId="spend"
+                type="monotone"
+                dataKey="spend_usd"
+                name={spendLineName}
+                stroke="#0d9488"
+                dot={false}
+                strokeWidth={2}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </ResponsiveChartWrapper>
       </div>
     </div>
   ) : (
@@ -246,69 +249,71 @@ export function PerformanceResultPanels({
         </div>
       </div>
       <div className="mt-1 h-[min(16rem,42dvh)] min-h-[12rem] w-full min-w-0 flex-1 sm:h-[min(18rem,40dvh)] lg:h-[min(20rem,44dvh)] xl:h-80">
-        <ResponsiveContainer width="99%" height="100%">
-          <LineChart data={tsChartData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
-            <XAxis
-              dataKey="day_index"
-              tick={{ fill: '#78716c', fontSize: 11 }}
-              allowDecimals={false}
-              minTickGap={10}
-            />
-            <YAxis
-              yAxisId="l"
-              tick={{ fill: '#78716c', fontSize: 11 }}
-              tickFormatter={(v) => formatMetricTick(tsLeft, Number(v))}
-            />
-            <YAxis
-              yAxisId="r"
-              orientation="right"
-              tick={{ fill: '#78716c', fontSize: 11 }}
-              tickFormatter={(v) => formatMetricTick(tsRight, Number(v))}
-            />
-            <Tooltip
-              {...chartTooltipStyle}
-              labelFormatter={(_: unknown, payload: readonly { payload?: { date?: string; day_index?: number } }[] | undefined) => {
-                const row = payload?.[0]?.payload as { date?: string; day_index?: number } | undefined
-                const d = row?.date != null ? String(row.date) : null
-                const day = row?.day_index
-                if (d && day != null) return `Day ${day} · ${d}`
-                if (day != null) return `Day ${day}`
-                return ''
-              }}
-              formatter={(value: unknown, name: unknown) => {
-                const label = String(name)
-                if (value === undefined || value === null) return ['-', label]
-                const num = typeof value === 'number' ? value : Number(value)
-                if (Number.isNaN(num)) return ['-', label]
-                const ll = metricLabel(tsLeft)
-                const rr = metricLabel(tsRight)
-                if (label === ll) return [formatMetricValue(tsLeft, num), ll]
-                if (label === rr) return [formatMetricValue(tsRight, num), rr]
-                return [formatMetricValue(tsLeft, num), label]
-              }}
-            />
-            <Legend />
-            <Line
-              yAxisId="l"
-              type="monotone"
-              dataKey={tsLeft}
-              name={metricLabel(tsLeft)}
-              stroke="#7c3aad"
-              dot={false}
-              strokeWidth={2}
-            />
-            <Line
-              yAxisId="r"
-              type="monotone"
-              dataKey={tsRight}
-              name={metricLabel(tsRight)}
-              stroke="#5e2d87"
-              dot={false}
-              strokeWidth={2}
-            />
-          </LineChart>
-        </ResponsiveContainer>
+        <ResponsiveChartWrapper>
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={tsChartData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
+              <XAxis
+                dataKey="day_index"
+                tick={{ fill: '#78716c', fontSize: 11 }}
+                allowDecimals={false}
+                minTickGap={10}
+              />
+              <YAxis
+                yAxisId="l"
+                tick={{ fill: '#78716c', fontSize: 11 }}
+                tickFormatter={(v) => formatMetricTick(tsLeft, Number(v))}
+              />
+              <YAxis
+                yAxisId="r"
+                orientation="right"
+                tick={{ fill: '#78716c', fontSize: 11 }}
+                tickFormatter={(v) => formatMetricTick(tsRight, Number(v))}
+              />
+              <Tooltip
+                {...chartTooltipStyle}
+                labelFormatter={(_: unknown, payload: readonly { payload?: { date?: string; day_index?: number } }[] | undefined) => {
+                  const row = payload?.[0]?.payload as { date?: string; day_index?: number } | undefined
+                  const d = row?.date != null ? String(row.date) : null
+                  const day = row?.day_index
+                  if (d && day != null) return `Day ${day} · ${d}`
+                  if (day != null) return `Day ${day}`
+                  return ''
+                }}
+                formatter={(value: unknown, name: unknown) => {
+                  const label = String(name)
+                  if (value === undefined || value === null) return ['-', label]
+                  const num = typeof value === 'number' ? value : Number(value)
+                  if (Number.isNaN(num)) return ['-', label]
+                  const ll = metricLabel(tsLeft)
+                  const rr = metricLabel(tsRight)
+                  if (label === ll) return [formatMetricValue(tsLeft, num), ll]
+                  if (label === rr) return [formatMetricValue(tsRight, num), rr]
+                  return [formatMetricValue(tsLeft, num), label]
+                }}
+              />
+              <Legend />
+              <Line
+                yAxisId="l"
+                type="monotone"
+                dataKey={tsLeft}
+                name={metricLabel(tsLeft)}
+                stroke="#7c3aad"
+                dot={false}
+                strokeWidth={2}
+              />
+              <Line
+                yAxisId="r"
+                type="monotone"
+                dataKey={tsRight}
+                name={metricLabel(tsRight)}
+                stroke="#5e2d87"
+                dot={false}
+                strokeWidth={2}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </ResponsiveChartWrapper>
       </div>
     </div>
   )
@@ -370,28 +375,30 @@ export function PerformanceResultPanels({
               </div>
               <div className="mt-1 min-h-[12rem] w-full min-w-0 sm:min-h-[14rem]">
                 <div className="h-[min(18rem,45dvh)] w-full sm:h-[min(20rem,42dvh)] lg:h-[min(22rem,48dvh)] xl:h-[min(26rem,52vh)]">
-                  <ResponsiveContainer width="99%" height="100%">
-                    <BarChart data={barData} layout="vertical" margin={{ left: 2, right: 8, top: 4, bottom: 4 }}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" horizontal={false} />
-                      <XAxis
-                        type="number"
-                        tick={{ fill: '#78716c', fontSize: 10 }}
-                        tickFormatter={(v) => formatMetricTick(barMetric, Number(v))}
-                      />
-                      <YAxis
-                        type="category"
-                        dataKey="name"
-                        width={108}
-                        tick={{ fill: '#57534e', fontSize: 9 }}
-                        interval={0}
-                      />
-                      <Tooltip
-                        {...chartTooltipStyle}
-                        formatter={(v: unknown) => [formatMetricValue(barMetric, Number(v)), metricLabel(barMetric)]}
-                      />
-                      <Bar dataKey="v" name={metricLabel(barMetric)} fill="#7c3aad" radius={[0, 2, 2, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  <ResponsiveChartWrapper>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={barData} layout="vertical" margin={{ left: 2, right: 8, top: 4, bottom: 4 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" horizontal={false} />
+                        <XAxis
+                          type="number"
+                          tick={{ fill: '#78716c', fontSize: 10 }}
+                          tickFormatter={(v) => formatMetricTick(barMetric, Number(v))}
+                        />
+                        <YAxis
+                          type="category"
+                          dataKey="name"
+                          width={108}
+                          tick={{ fill: '#57534e', fontSize: 9 }}
+                          interval={0}
+                        />
+                        <Tooltip
+                          {...chartTooltipStyle}
+                          formatter={(v: unknown) => [formatMetricValue(barMetric, Number(v)), metricLabel(barMetric)]}
+                        />
+                        <Bar dataKey="v" name={metricLabel(barMetric)} fill="#7c3aad" radius={[0, 2, 2, 0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </ResponsiveChartWrapper>
                 </div>
               </div>
             </div>

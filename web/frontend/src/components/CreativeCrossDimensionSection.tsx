@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { ResponsiveChartWrapper } from './ResponsiveChartWrapper'
 import type { PerformanceQueryResponse } from '../lib/api'
 import { CREATIVE_CROSS_DIM } from '../lib/performanceLabels'
 import {
@@ -85,28 +86,30 @@ export function CreativeCrossDimensionSection({ data, queryError, fixedMetric }:
               <p className="mt-2 text-xs text-stone-500">No rows for this dimension in the selected window.</p>
             ) : (
               <div className="mt-2 h-[min(16rem,38dvh)] min-h-[11rem] w-full min-w-0 flex-1">
-                <ResponsiveContainer width="99%" height="100%">
-                  <BarChart data={barData} layout="vertical" margin={{ left: 2, right: 8, top: 4, bottom: 4 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" horizontal={false} />
-                    <XAxis
-                      type="number"
-                      tick={{ fill: '#78716c', fontSize: 10 }}
-                      tickFormatter={(v) => formatMetricTick(selectedMetric, Number(v))}
-                    />
-                    <YAxis
-                      type="category"
-                      dataKey="name"
-                      width={dim === 'country' ? 36 : 52}
-                      tick={{ fill: '#57534e', fontSize: 9 }}
-                      interval={0}
-                    />
-                    <Tooltip
-                      {...chartTooltipStyle}
-                      formatter={(v: unknown) => [formatMetricValue(selectedMetric, Number(v)), metricLabel(selectedMetric)]}
-                    />
-                    <Bar dataKey="v" name={metricLabel(selectedMetric)} fill="#0d9488" radius={[0, 2, 2, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
+                <ResponsiveChartWrapper>
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={barData} layout="vertical" margin={{ left: 2, right: 8, top: 4, bottom: 4 }}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" horizontal={false} />
+                      <XAxis
+                        type="number"
+                        tick={{ fill: '#78716c', fontSize: 10 }}
+                        tickFormatter={(v) => formatMetricTick(selectedMetric, Number(v))}
+                      />
+                      <YAxis
+                        type="category"
+                        dataKey="name"
+                        width={dim === 'country' ? 36 : 52}
+                        tick={{ fill: '#57534e', fontSize: 9 }}
+                        interval={0}
+                      />
+                      <Tooltip
+                        {...chartTooltipStyle}
+                        formatter={(v: unknown) => [formatMetricValue(selectedMetric, Number(v)), metricLabel(selectedMetric)]}
+                      />
+                      <Bar dataKey="v" name={metricLabel(selectedMetric)} fill="#0d9488" radius={[0, 2, 2, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </ResponsiveChartWrapper>
               </div>
             )}
           </div>

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LineChart, Line, CartesianGrid, ReferenceLine } from 'recharts'
+import { ResponsiveChartWrapper } from '../components/ResponsiveChartWrapper'
 import { useParams } from 'react-router-dom'
 import { BackNavLink } from '../components/BackNavLink'
 import { CreativeCrossDimensionSection } from '../components/CreativeCrossDimensionSection'
@@ -204,36 +205,38 @@ export function CreativeDetailPage() {
               <div className="flex-1 rounded-lg border border-stone-100 bg-white p-4">
                 <h3 className="mb-4 text-sm font-bold text-stone-800">Feature Impact (SHAP)</h3>
                 <div className="h-64 w-full min-w-0 min-h-0">
-                  <ResponsiveContainer width="99%" height="100%">
-                    <BarChart
-                      layout="vertical"
-                      data={creative.shap_json.factors}
-                      margin={{ top: 0, right: 20, left: 40, bottom: 0 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" horizontal={false} />
-                      <XAxis type="number" hide />
-                      <YAxis 
-                        dataKey="feature" 
-                        type="category" 
-                        axisLine={false} 
-                        tickLine={false}
-                        tick={{ fontSize: 12, fill: '#57534e' }}
-                        tickFormatter={(val) => val.replace(/_/g, ' ')}
-                      />
-                      <Tooltip 
-                        formatter={(value: any, _name: any, props: any) => [
-                          `${Number(value).toFixed(3)} (Value: ${props.payload.value})`, 
-                          'Impact'
-                        ]}
-                      />
-                      <ReferenceLine x={0} stroke="#a8a29e" />
-                      <Bar dataKey="shap_value" barSize={16} radius={[0, 4, 4, 0]}>
-                        {creative.shap_json.factors?.map((entry: any, index: number) => (
-                          <Cell key={`cell-${index}`} fill={entry.shap_value > 0 ? '#ef4444' : '#3b82f6'} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
+                  <ResponsiveChartWrapper>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        layout="vertical"
+                        data={creative.shap_json.factors}
+                        margin={{ top: 0, right: 20, left: 40, bottom: 0 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                        <XAxis type="number" hide />
+                        <YAxis 
+                          dataKey="feature" 
+                          type="category" 
+                          axisLine={false} 
+                          tickLine={false}
+                          tick={{ fontSize: 12, fill: '#57534e' }}
+                          tickFormatter={(val) => val.replace(/_/g, ' ')}
+                        />
+                        <Tooltip 
+                          formatter={(value: any, _name: any, props: any) => [
+                            `${Number(value).toFixed(3)} (Value: ${props.payload.value})`, 
+                            'Impact'
+                          ]}
+                        />
+                        <ReferenceLine x={0} stroke="#a8a29e" />
+                        <Bar dataKey="shap_value" barSize={16} radius={[0, 4, 4, 0]}>
+                          {creative.shap_json.factors?.map((entry: any, index: number) => (
+                            <Cell key={`cell-${index}`} fill={entry.shap_value > 0 ? '#ef4444' : '#3b82f6'} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </ResponsiveChartWrapper>
                 </div>
                 <div className="mt-2 flex justify-between text-xs text-stone-500">
                   <span>← Decreases Risk</span>
@@ -246,39 +249,41 @@ export function CreativeDetailPage() {
                 <div className="flex-1 rounded-lg border border-stone-100 bg-white p-4">
                   <h3 className="mb-4 text-sm font-bold text-stone-800">Estimated Survival Curve</h3>
                   <div className="h-64 w-full min-w-0 min-h-0">
-                    <ResponsiveContainer width="99%" height="100%">
-                      <LineChart
-                        data={creative.shap_json.survival_curve}
-                        margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-                      >
-                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                        <XAxis 
-                          dataKey="day" 
-                          tick={{ fontSize: 12, fill: '#57534e' }} 
-                          tickLine={false}
-                          axisLine={{ stroke: '#e7e5e4' }}
-                        />
-                        <YAxis 
-                          tick={{ fontSize: 12, fill: '#57534e' }} 
-                          tickLine={false}
-                          axisLine={false}
-                          domain={[0, 1]}
-                          tickFormatter={(val) => `${(val * 100).toFixed(0)}%`}
-                        />
-                        <Tooltip 
-                          labelFormatter={(label) => `Day ${label}`}
-                          formatter={(value: any) => [`${(Number(value) * 100).toFixed(1)}%`, 'Survival Prob.']}
-                        />
-                        <Line 
-                          type="stepAfter" 
-                          dataKey="prob" 
-                          stroke="#8b5cf6" 
-                          strokeWidth={2} 
-                          dot={false}
-                          activeDot={{ r: 4, fill: '#8b5cf6', stroke: '#fff' }}
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
+                    <ResponsiveChartWrapper>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart
+                          data={creative.shap_json.survival_curve}
+                          margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                        >
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                          <XAxis 
+                            dataKey="day" 
+                            tick={{ fontSize: 12, fill: '#57534e' }} 
+                            tickLine={false}
+                            axisLine={{ stroke: '#e7e5e4' }}
+                          />
+                          <YAxis 
+                            tick={{ fontSize: 12, fill: '#57534e' }} 
+                            tickLine={false}
+                            axisLine={false}
+                            domain={[0, 1]}
+                            tickFormatter={(val) => `${(val * 100).toFixed(0)}%`}
+                          />
+                          <Tooltip 
+                            labelFormatter={(label) => `Day ${label}`}
+                            formatter={(value: any) => [`${(Number(value) * 100).toFixed(1)}%`, 'Survival Prob.']}
+                          />
+                          <Line 
+                            type="stepAfter" 
+                            dataKey="prob" 
+                            stroke="#8b5cf6" 
+                            strokeWidth={2} 
+                            dot={false}
+                            activeDot={{ r: 4, fill: '#8b5cf6', stroke: '#fff' }}
+                          />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </ResponsiveChartWrapper>
                   </div>
                   <div className="mt-2 text-center text-xs text-stone-500">
                     Days since launch
@@ -372,43 +377,45 @@ export function CreativeDetailPage() {
               <div className="flex-1 rounded-lg border border-stone-100 bg-white p-4">
                 <h3 className="mb-4 text-sm font-bold text-stone-800">Dynamic Hazard Trajectory</h3>
                 <div className="h-72 w-full min-w-0 min-h-0">
-                  <ResponsiveContainer width="99%" height="100%">
-                    <LineChart
-                      data={creative.daily_hazards_json.daily_data}
-                      margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                      <XAxis 
-                        dataKey="day" 
-                        tick={{ fontSize: 12, fill: '#57534e' }} 
-                        tickLine={false}
-                        axisLine={{ stroke: '#e7e5e4' }}
-                      />
-                      <YAxis 
-                        tick={{ fontSize: 12, fill: '#57534e' }} 
-                        tickLine={false}
-                        axisLine={false}
-                        tickFormatter={(val) => `${val}x`}
-                      />
-                      <Tooltip 
-                        labelFormatter={(label) => `Day ${label}`}
-                        formatter={(value: any) => [`${Number(value).toFixed(2)}x`, 'Relative Hazard']}
-                      />
-                      <ReferenceLine y={1.0} stroke="#a8a29e" strokeDasharray="3 3" label={{ position: 'insideTopLeft', value: 'Baseline (1x)', fill: '#a8a29e', fontSize: 11 }} />
-                      <ReferenceLine y={2.0} stroke="#fca5a5" strokeDasharray="3 3" label={{ position: 'insideTopLeft', value: 'High Risk (2x)', fill: '#fca5a5', fontSize: 11 }} />
-                      
-                      <ReferenceLine x={selectedDay} stroke="#3b82f6" strokeWidth={2} />
-                      
-                      <Line 
-                        type="monotone" 
-                        dataKey="hazard_score" 
-                        stroke="#dc2626" 
-                        strokeWidth={2} 
-                        dot={false}
-                        activeDot={{ r: 4, fill: '#dc2626', stroke: '#fff' }}
-                      />
-                    </LineChart>
-                  </ResponsiveContainer>
+                  <ResponsiveChartWrapper>
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart
+                        data={creative.daily_hazards_json.daily_data}
+                        margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis 
+                          dataKey="day" 
+                          tick={{ fontSize: 12, fill: '#57534e' }} 
+                          tickLine={false}
+                          axisLine={{ stroke: '#e7e5e4' }}
+                        />
+                        <YAxis 
+                          tick={{ fontSize: 12, fill: '#57534e' }} 
+                          tickLine={false}
+                          axisLine={false}
+                          tickFormatter={(val) => `${val}x`}
+                        />
+                        <Tooltip 
+                          labelFormatter={(label) => `Day ${label}`}
+                          formatter={(value: any) => [`${Number(value).toFixed(2)}x`, 'Relative Hazard']}
+                        />
+                        <ReferenceLine y={1.0} stroke="#a8a29e" strokeDasharray="3 3" label={{ position: 'insideTopLeft', value: 'Baseline (1x)', fill: '#a8a29e', fontSize: 11 }} />
+                        <ReferenceLine y={2.0} stroke="#fca5a5" strokeDasharray="3 3" label={{ position: 'insideTopLeft', value: 'High Risk (2x)', fill: '#fca5a5', fontSize: 11 }} />
+                        
+                        <ReferenceLine x={selectedDay} stroke="#3b82f6" strokeWidth={2} />
+                        
+                        <Line 
+                          type="monotone" 
+                          dataKey="hazard_score" 
+                          stroke="#dc2626" 
+                          strokeWidth={2} 
+                          dot={false}
+                          activeDot={{ r: 4, fill: '#dc2626', stroke: '#fff' }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </ResponsiveChartWrapper>
                 </div>
                 <div className="mt-2 text-center text-xs text-stone-500">
                   Days since launch
