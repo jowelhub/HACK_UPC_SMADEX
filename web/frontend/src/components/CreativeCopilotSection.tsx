@@ -14,24 +14,27 @@ export function CreativeCopilotSection({ dailyHazardsJson }: Props) {
   }
 
   const maxDays = dailyHazardsJson.max_days || dailyHazardsJson.daily_data.length
+  const activeDay =
+    dailyHazardsJson.daily_data.find((d: any) => d.day === selectedDay) ||
+    dailyHazardsJson.daily_data[dailyHazardsJson.daily_data.length - 1]
+
+  if (!activeDay) return null
 
   return (
-    <div className="mt-8 rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
-      <div className="mb-6 border-b border-stone-100 pb-4">
-        <h2 className="text-xl font-bold text-stone-800">Post-Launch Copilot (Interactive Hazard)</h2>
+    <div className="mt-8 rounded-md border border-stone-200 bg-white p-4 sm:p-5">
+      <div className="mb-4">
+        <h2 className="text-lg font-semibold text-stone-900">Post-Launch Copilot</h2>
         <p className="mt-1 text-sm text-stone-500">
-          Explore how real-time performance metrics affect this creative's fatigue risk over time using a Time-Varying Cox model.
+          Daily fatigue risk and recommended next action from the post-launch hazard model.
         </p>
       </div>
 
-      <div className="flex flex-col gap-8 md:flex-row">
-        {/* Controls and Stats */}
-        <div className="flex w-full flex-col gap-6 md:w-1/3">
-          {/* Day Slider */}
-          <div className="rounded-lg bg-stone-50 p-4">
+      <div className="flex flex-col gap-4 lg:flex-row">
+        <div className="flex w-full flex-col gap-4 lg:w-[20rem] lg:shrink-0">
+          <div className="rounded-md border border-stone-200 bg-stone-50/80 p-4">
             <div className="mb-2 flex items-center justify-between">
-              <label className="text-sm font-semibold text-stone-700">Timeline (Days Since Launch)</label>
-              <span className="rounded bg-blue-100 px-2 py-1 text-xs font-bold text-blue-800">Day {selectedDay}</span>
+              <label className="text-sm font-medium text-stone-700">Timeline</label>
+              <span className="rounded bg-brand/10 px-2 py-1 text-xs font-semibold text-brand">Day {selectedDay}</span>
             </div>
             <input
               type="range"
@@ -39,7 +42,7 @@ export function CreativeCopilotSection({ dailyHazardsJson }: Props) {
               max={maxDays}
               value={selectedDay}
               onChange={(e) => setSelectedDay(parseInt(e.target.value, 10))}
-              className="w-full cursor-pointer accent-blue-600"
+              className="w-full cursor-pointer accent-brand"
             />
             <div className="mt-1 flex justify-between text-xs text-stone-400">
               <span>Day 1</span>
@@ -47,46 +50,60 @@ export function CreativeCopilotSection({ dailyHazardsJson }: Props) {
             </div>
           </div>
 
-          {/* Recommendation Panel */}
           {(() => {
-            const dayData = dailyHazardsJson.daily_data.find((d: any) => d.day === selectedDay) 
-              || dailyHazardsJson.daily_data[dailyHazardsJson.daily_data.length - 1]
-
-            if (!dayData) return null
-
-            const isScale = dayData.recommendation === 'Scale'
-            const isHold = dayData.recommendation === 'Hold'
-            
-            const bgColor = isScale ? 'bg-green-50' : isHold ? 'bg-yellow-50' : 'bg-red-50'
-            const borderColor = isScale ? 'border-green-200' : isHold ? 'border-yellow-200' : 'border-red-200'
-            const textColor = isScale ? 'text-green-800' : isHold ? 'text-yellow-800' : 'text-red-800'
+            const isScale = activeDay.recommendation === 'Scale'
+            const isHold = activeDay.recommendation === 'Hold'
+            const toneClass = isScale
+              ? 'border-emerald-200 bg-emerald-50/70 text-emerald-800'
+              : isHold
+                ? 'border-amber-200 bg-amber-50/70 text-amber-800'
+                : 'border-rose-200 bg-rose-50/70 text-rose-800'
 
             return (
-              <div className={`flex flex-col rounded-lg border p-5 ${bgColor} ${borderColor}`}>
-                <div className="text-sm font-medium text-stone-600">Action Recommendation</div>
-                <div className={`mt-1 text-3xl font-black ${textColor}`}>
-                  {dayData.recommendation.toUpperCase()}
+              <div className={`rounded-md border p-4 ${toneClass}`}>
+                <div className="text-xs font-semibold uppercase tracking-wide text-stone-500">Recommended action</div>
+                <div className="mt-2 text-2xl font-semibold">{String(activeDay.recommendation).toUpperCase()}</div>
+                <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <div className="text-xs uppercase tracking-wide text-stone-500">Relative hazard</div>
+                    <div className="mt-1 font-semibold">{Number(activeDay.hazard_score).toFixed(2)}x</div>
+                  </div>
+                  <div>
+                    <div className="text-xs uppercase tracking-wide text-stone-500">Selected day</div>
+                    <div className="mt-1 font-semibold">Day {selectedDay}</div>
+                  </div>
                 </div>
-                
-                <div className="mt-4 flex items-baseline gap-2">
-                  <span className="text-sm font-medium text-stone-600">Relative Hazard:</span>
-                  <span className={`text-xl font-bold ${textColor}`}>{dayData.hazard_score.toFixed(2)}x</span>
-                </div>
-                <p className="mt-2 text-xs text-stone-500">
-                  {isScale ? 'Risk is low. Consider scaling spend if ROAS is positive.' :
-                   isHold ? 'Risk is accumulating. Monitor closely and hold current spend.' :
-                   'High risk of imminent fatigue. Consider pausing or refreshing creative.'}
+                <p className="mt-3 text-sm leading-6 text-stone-600">
+                  {isScale
+                    ? 'Risk stays controlled. Keep scaling selective and confirm ROAS remains supportive.'
+                    : isHold
+                      ? 'Risk is building. Hold budget steady and watch for further deterioration.'
+                      : 'Fatigue risk is elevated. Refresh or rotate this creative before scaling further.'}
                 </p>
 
-                {/* Daily Features */}
-                {dayData.features && (
-                  <div className="mt-4 pt-4 border-t border-stone-200/60">
-                    <div className="mb-2 text-xs font-semibold text-stone-500 uppercase tracking-wider">Metrics on Day {selectedDay}</div>
-                    <ul className="space-y-1 text-sm text-stone-700">
-                      <li className="flex justify-between"><span>CTR vs Peak:</span> <span className="font-medium">{dayData.features.ctr_vs_peak != null ? (dayData.features.ctr_vs_peak * 100).toFixed(0) + '%' : '-'}</span></li>
-                      <li className="flex justify-between"><span>CVR vs Peak:</span> <span className="font-medium">{dayData.features.cvr_vs_peak != null ? (dayData.features.cvr_vs_peak * 100).toFixed(0) + '%' : '-'}</span></li>
-                      <li className="flex justify-between"><span>7D Spend Vel.:</span> <span className="font-medium">{dayData.features.spend_velocity_7d != null ? '$' + dayData.features.spend_velocity_7d.toFixed(0) : '-'}</span></li>
-                    </ul>
+                {activeDay.features && (
+                  <div className="mt-4 border-t border-stone-200/70 pt-4">
+                    <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-stone-500">Signals</div>
+                    <div className="space-y-2 text-sm text-stone-700">
+                      <div className="flex items-center justify-between">
+                        <span>CTR vs peak</span>
+                        <span className="font-medium">
+                          {activeDay.features.ctr_vs_peak != null ? `${(activeDay.features.ctr_vs_peak * 100).toFixed(0)}%` : '-'}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span>CVR vs peak</span>
+                        <span className="font-medium">
+                          {activeDay.features.cvr_vs_peak != null ? `${(activeDay.features.cvr_vs_peak * 100).toFixed(0)}%` : '-'}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span>7D spend velocity</span>
+                        <span className="font-medium">
+                          {activeDay.features.spend_velocity_7d != null ? `$${activeDay.features.spend_velocity_7d.toFixed(0)}` : '-'}
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -94,25 +111,24 @@ export function CreativeCopilotSection({ dailyHazardsJson }: Props) {
           })()}
         </div>
 
-        {/* Trajectory Plot */}
-        <div className="flex-1 rounded-lg border border-stone-100 bg-white p-4">
-          <h3 className="mb-4 text-sm font-bold text-stone-800">Dynamic Hazard Trajectory</h3>
-          <div className="h-72 w-full min-w-0 min-h-0">
+        <div className="rounded-md border border-stone-200 bg-white p-4 lg:min-w-0 lg:flex-1">
+          <h3 className="mb-4 text-sm font-semibold text-stone-900">Fatigue risk trend</h3>
+          <div className="h-72 w-full min-h-0 min-w-0">
             <ResponsiveChartWrapper>
-              <ResponsiveContainer width="100%" height="100%">
+              <ResponsiveContainer width="100%" height="100%" minHeight={240} debounce={1}>
                 <LineChart
                   data={dailyHazardsJson.daily_data}
-                  margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                  margin={{ top: 12, right: 12, left: 0, bottom: 0 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" vertical={false} />
                   <XAxis 
                     dataKey="day" 
-                    tick={{ fontSize: 12, fill: '#57534e' }} 
+                    tick={{ fontSize: 12, fill: '#78716c' }} 
                     tickLine={false}
                     axisLine={{ stroke: '#e7e5e4' }}
                   />
                   <YAxis 
-                    tick={{ fontSize: 12, fill: '#57534e' }} 
+                    tick={{ fontSize: 12, fill: '#78716c' }} 
                     tickLine={false}
                     axisLine={false}
                     tickFormatter={(val) => `${val}x`}
@@ -121,25 +137,26 @@ export function CreativeCopilotSection({ dailyHazardsJson }: Props) {
                     labelFormatter={(label) => `Day ${label}`}
                     formatter={(value: any) => [`${Number(value).toFixed(2)}x`, 'Relative Hazard']}
                   />
-                  <ReferenceLine y={1.0} stroke="#a8a29e" strokeDasharray="3 3" label={{ position: 'insideTopLeft', value: 'Baseline (1x)', fill: '#a8a29e', fontSize: 11 }} />
-                  <ReferenceLine y={2.0} stroke="#fca5a5" strokeDasharray="3 3" label={{ position: 'insideTopLeft', value: 'High Risk (2x)', fill: '#fca5a5', fontSize: 11 }} />
+                  <ReferenceLine y={1.0} stroke="#a8a29e" strokeDasharray="3 3" />
+                  <ReferenceLine y={2.0} stroke="#fca5a5" strokeDasharray="3 3" />
                   
-                  <ReferenceLine x={selectedDay} stroke="#3b82f6" strokeWidth={2} />
+                  <ReferenceLine x={selectedDay} stroke="#7c3aed" strokeWidth={2} />
                   
                   <Line 
                     type="monotone" 
                     dataKey="hazard_score" 
-                    stroke="#dc2626" 
+                    stroke="#ef4444" 
                     strokeWidth={2} 
                     dot={false}
-                    activeDot={{ r: 4, fill: '#dc2626', stroke: '#fff' }}
+                    activeDot={{ r: 4, fill: '#ef4444', stroke: '#fff' }}
                   />
                 </LineChart>
               </ResponsiveContainer>
             </ResponsiveChartWrapper>
           </div>
-          <div className="mt-2 text-center text-xs text-stone-500">
-            Days since launch
+          <div className="mt-3 flex items-center justify-between text-xs text-stone-500">
+            <span>Baseline: 1.0x</span>
+            <span>High risk: 2.0x</span>
           </div>
         </div>
       </div>

@@ -9,45 +9,47 @@ interface Props {
 export function CreativeExplainabilitySection({ healthScore, shapJson }: Props) {
   if (!shapJson) return null
 
+  const toneClass =
+    healthScore >= 60 ? 'text-emerald-600' : healthScore >= 30 ? 'text-amber-500' : 'text-rose-500'
+  const fillClass =
+    healthScore >= 60 ? 'bg-emerald-500' : healthScore >= 30 ? 'bg-amber-500' : 'bg-rose-500'
+
   return (
-    <div className="mt-8 rounded-xl border border-stone-200 bg-white p-6 shadow-sm">
-      <div className="mb-6">
-        <h2 className="text-xl font-bold text-stone-900">Creative Explainability (Health & Risk Factors)</h2>
+    <div className="mt-8 rounded-md border border-stone-200 bg-white p-4 sm:p-5">
+      <div className="mb-4">
+        <h2 className="text-lg font-semibold text-stone-900">Creative Health</h2>
         <p className="mt-1 text-sm text-stone-500">
-          Understanding what drives this creative's performance based on its innate features.
+          Model-based drivers behind risk and expected survival.
         </p>
       </div>
       
-      <div className="flex flex-col gap-8 md:flex-row">
-        {/* Health Score Panel */}
-        <div className="flex shrink-0 flex-col items-center justify-center rounded-lg bg-stone-50 p-6 md:w-48">
-          <div className="text-sm font-medium text-stone-500">Health Score</div>
+      <div className="flex flex-col gap-4 lg:flex-row">
+        <div className="flex shrink-0 flex-col items-center justify-center rounded-md border border-stone-200 bg-stone-50/80 p-5 lg:w-48">
+          <div className="text-sm font-medium text-stone-500">Health score</div>
           <div className="relative mt-4 flex h-32 w-8 flex-col-reverse overflow-hidden rounded-full bg-stone-200">
-            <div 
-              className={`w-full transition-all duration-500 ${healthScore >= 60 ? 'bg-green-500' : healthScore >= 30 ? 'bg-yellow-500' : 'bg-red-500'}`}
+            <div
+              className={`w-full transition-all duration-500 ${fillClass}`}
               style={{ height: `${healthScore}%` }}
             />
           </div>
-          <div className={`mt-4 text-4xl font-black ${
-            healthScore >= 60 ? 'text-green-600' : healthScore >= 30 ? 'text-yellow-500' : 'text-red-500'
-          }`}>
+          <div className={`mt-4 text-4xl font-semibold ${toneClass}`}>
             {healthScore}
           </div>
+          <div className="mt-1 text-xs uppercase tracking-wide text-stone-400">out of 100</div>
         </div>
 
-        {/* Factors (SHAP) */}
         {shapJson.factors && (
-          <div className="flex-1 rounded-lg border border-stone-100 bg-white p-4">
-            <h3 className="mb-4 text-sm font-bold text-stone-800">Feature Impact (SHAP)</h3>
-            <div className="h-64 w-full min-w-0 min-h-0">
+          <div className="flex-1 rounded-md border border-stone-200 bg-white p-4">
+            <h3 className="mb-4 text-sm font-semibold text-stone-900">Risk drivers</h3>
+            <div className="h-64 w-full min-h-0 min-w-0">
               <ResponsiveChartWrapper>
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minHeight={240} debounce={1}>
                   <BarChart
                     layout="vertical"
                     data={shapJson.factors}
                     margin={{ top: 0, right: 20, left: 40, bottom: 0 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" horizontal={false} />
+                    <CartesianGrid stroke="#e7e5e4" strokeDasharray="3 3" horizontal={false} />
                     <XAxis type="number" hide />
                     <YAxis 
                       dataKey="feature" 
@@ -57,9 +59,9 @@ export function CreativeExplainabilitySection({ healthScore, shapJson }: Props) 
                       tick={{ fontSize: 12, fill: '#57534e' }}
                       tickFormatter={(val) => typeof val === 'string' ? val.replace(/_/g, ' ') : val}
                     />
-                    <Tooltip 
+                    <Tooltip
                       formatter={(value: any, _name: any, props: any) => [
-                        `${Number(value).toFixed(3)} (Value: ${props.payload.value})`, 
+                        `${Number(value).toFixed(3)} · value ${props.payload.value}`,
                         'Impact'
                       ]}
                     />
@@ -74,32 +76,31 @@ export function CreativeExplainabilitySection({ healthScore, shapJson }: Props) 
               </ResponsiveChartWrapper>
             </div>
             <div className="mt-2 flex justify-between text-xs text-stone-500">
-              <span>← Decreases Risk</span>
-              <span>Increases Risk →</span>
+              <span>Lower risk</span>
+              <span>Higher risk</span>
             </div>
           </div>
         )}
         
-        {/* Survival Curve */}
         {shapJson.survival_curve && (
-          <div className="flex-1 rounded-lg border border-stone-100 bg-white p-4">
-            <h3 className="mb-4 text-sm font-bold text-stone-800">Estimated Survival Curve</h3>
-            <div className="h-64 w-full min-w-0 min-h-0">
+          <div className="flex-1 rounded-md border border-stone-200 bg-white p-4">
+            <h3 className="mb-4 text-sm font-semibold text-stone-900">Survival outlook</h3>
+            <div className="h-64 w-full min-h-0 min-w-0">
               <ResponsiveChartWrapper>
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height="100%" minHeight={240} debounce={1}>
                   <LineChart
                     data={shapJson.survival_curve}
-                    margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                    margin={{ top: 12, right: 12, left: 0, bottom: 0 }}
                   >
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                    <CartesianGrid stroke="#e7e5e4" strokeDasharray="3 3" vertical={false} />
                     <XAxis 
                       dataKey="day" 
-                      tick={{ fontSize: 12, fill: '#57534e' }} 
+                      tick={{ fontSize: 12, fill: '#78716c' }} 
                       tickLine={false}
                       axisLine={{ stroke: '#e7e5e4' }}
                     />
                     <YAxis 
-                      tick={{ fontSize: 12, fill: '#57534e' }} 
+                      tick={{ fontSize: 12, fill: '#78716c' }} 
                       tickLine={false}
                       axisLine={false}
                       domain={[0, 1]}
@@ -107,7 +108,7 @@ export function CreativeExplainabilitySection({ healthScore, shapJson }: Props) 
                     />
                     <Tooltip 
                       labelFormatter={(label) => `Day ${label}`}
-                      formatter={(value: any) => [`${(Number(value) * 100).toFixed(1)}%`, 'Survival Prob.']}
+                      formatter={(value: any) => [`${(Number(value) * 100).toFixed(1)}%`, 'Survival']}
                     />
                     <Line 
                       type="stepAfter" 
@@ -121,8 +122,8 @@ export function CreativeExplainabilitySection({ healthScore, shapJson }: Props) 
                 </ResponsiveContainer>
               </ResponsiveChartWrapper>
             </div>
-            <div className="mt-2 text-center text-xs text-stone-500">
-              Days since launch
+            <div className="mt-3 text-right text-xs text-stone-500">
+              Probability of staying healthy over time
             </div>
           </div>
         )}

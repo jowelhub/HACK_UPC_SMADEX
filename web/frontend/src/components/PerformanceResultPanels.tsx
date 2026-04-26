@@ -135,15 +135,15 @@ export function PerformanceResultPanels({
   )
 
   const dailySeriesPanel = lockDailySeriesToKpiGoal ? (
-    <div className="surface-panel flex min-h-0 min-w-0 w-full flex-1 flex-col">
+    <div className="surface-panel min-h-0 min-w-0 w-full">
       <div className="mb-2 min-w-0">
         <p className="text-xs text-stone-600">
           KPI goal: <span className="font-medium text-stone-800">{kpiGoalLabel}</span>
         </p>
       </div>
-      <div className="mt-1 h-[min(16rem,42dvh)] min-h-[12rem] w-full min-w-0 flex-1 sm:h-[min(18rem,40dvh)] lg:h-[min(20rem,44dvh)] xl:h-80">
+      <div className="mt-2 h-72 min-h-[18rem] w-full min-w-0 sm:h-80 lg:h-[21rem] xl:h-[22rem]">
         <ResponsiveChartWrapper>
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minHeight={240} debounce={1}>
             <LineChart data={tsChartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
               <XAxis
@@ -207,7 +207,7 @@ export function PerformanceResultPanels({
       </div>
     </div>
   ) : (
-    <div className="surface-panel flex min-h-0 min-w-0 w-full flex-1 flex-col">
+    <div className="surface-panel min-h-0 min-w-0 w-full">
       <div className="mb-2 flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end sm:justify-end">
         <div className="flex flex-wrap gap-2">
           <label className="flex items-center gap-1 text-xs text-stone-600">
@@ -248,9 +248,9 @@ export function PerformanceResultPanels({
           </label>
         </div>
       </div>
-      <div className="mt-1 h-[min(16rem,42dvh)] min-h-[12rem] w-full min-w-0 flex-1 sm:h-[min(18rem,40dvh)] lg:h-[min(20rem,44dvh)] xl:h-80">
+      <div className="mt-2 h-72 min-h-[18rem] w-full min-w-0 sm:h-80 lg:h-[21rem] xl:h-[22rem]">
         <ResponsiveChartWrapper>
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height="100%" minHeight={240} debounce={1}>
             <LineChart data={tsChartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
               <XAxis
