@@ -81,7 +81,7 @@ export function CampaignCreativePcaSection({ data, error, loading }: Props) {
       <h2 className={explorerUi.performanceLabel}>{CAMPAIGN_PCA_SECTION.heading}</h2>
       <div className="surface-panel w-full max-w-4xl p-2 sm:p-3">
         <ResponsiveContainer width="100%" height={220}>
-          <ScatterChart margin={{ top: 8, right: 12, bottom: 22, left: 8 }}>
+          <ScatterChart margin={{ top: 16, right: 12, bottom: 30, left: 34 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
             <XAxis
               type="number"
@@ -93,7 +93,7 @@ export function CampaignCreativePcaSection({ data, error, loading }: Props) {
               type="number"
               dataKey="pc2"
               tick={{ fill: '#78716c', fontSize: 11 }}
-              label={{ value: `PC2 (${pc2Pct}% variance)`, angle: -90, position: 'insideLeft', fill: '#57534e', fontSize: 11 }}
+              label={{ value: `PC2 (${pc2Pct}% variance)`, angle: -90, position: 'left', fill: '#57534e', fontSize: 11 }}
             />
             <Tooltip
               cursor={{ strokeDasharray: '3 3' }}
