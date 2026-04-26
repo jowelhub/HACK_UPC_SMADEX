@@ -21,19 +21,28 @@ export const explorerUi = {
   errorMessage: 'text-sm text-red-600',
   notFoundWrap: 'space-y-4',
   notFoundBody: 'text-stone-600',
-  /** Notion-inspired dashboard styles */
-  notionGrid: 'grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4',
+  /** Professional Dashboard styles - Refined for Smadex Enterprise */
+  notionGrid: 'grid gap-5 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5',
   notionCard:
-    'group flex flex-col overflow-hidden rounded-xl border border-stone-200 bg-white shadow-card transition-all duration-300 hover:-translate-y-1 hover:border-brand/40 hover:shadow-lg hover:shadow-brand/5',
-  notionCover: 'h-24 w-full bg-gradient-to-br transition-opacity group-hover:opacity-90',
-  notionBody: 'relative flex flex-1 flex-col px-5 pb-5 pt-0',
+    'group flex flex-col overflow-hidden rounded-xl border border-stone-200 bg-white transition-all duration-200 hover:border-brand/40 hover:shadow-md hover:shadow-brand/5',
+  notionCover: 'h-1 w-full bg-stone-100 transition-colors group-hover:bg-brand',
+  notionBody: 'flex flex-1 flex-col p-5',
   notionAvatarWrap:
-    'absolute -top-7 left-5 flex h-14 w-14 items-center justify-center rounded-xl border-4 border-white bg-white shadow-sm transition-transform duration-300 group-hover:scale-110',
+    'absolute -top-8 left-6 flex h-14 w-14 items-center justify-center rounded-xl border-4 border-white bg-white shadow-md transition-transform duration-300 group-hover:scale-110',
   notionAvatar:
     'flex h-full w-full items-center justify-center rounded-lg font-display text-xl font-bold text-white',
-  notionTitle: 'mt-5 font-display text-lg font-bold text-stone-900 group-hover:text-brand',
-  notionMeta: 'mt-3 flex flex-wrap gap-1.5',
+  notionTitle: 'font-display text-base font-bold leading-tight text-stone-900 transition-colors group-hover:text-brand',
+  notionMeta: 'mt-2.5 flex flex-wrap gap-2',
   notionTag:
-    'inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-semibold tracking-wide uppercase',
-  notionStat: 'mt-auto pt-4 text-xs font-medium text-stone-400',
+    'inline-flex items-center rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider',
+  notionStat: 'mt-4 border-t border-stone-100 pt-3 text-[10px] font-bold uppercase tracking-widest text-stone-400',
+  /** Professional tag colors: Regions are blue, others are neutral gray */
+  getTagColor: (val: string) => {
+    const v = val.toLowerCase().replace(/_/g, ' ')
+    const regions = ['europe', 'north america', 'apac', 'latam']
+    if (regions.some(r => v.includes(r))) {
+      return 'bg-purple-50 text-purple-700 border-purple-100'
+    }
+    return 'bg-stone-100 text-stone-600 border-stone-200'
+  },
 } as const

@@ -40,7 +40,7 @@ export const UI_COPY = {
   campaignNotFound: 'Campaign not found.',
   creativeOrCampaignNotFound: 'Creative or campaign not found.',
   unknownAdvertiser: 'Unknown advertiser.',
-  backToAdvertisers: '← Advertisers',
+  backToAdvertisers: 'Advertisers',
   noImage: 'No image available',
   advertiserListFallback: 'View performance',
 } as const

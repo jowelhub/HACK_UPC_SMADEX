@@ -8,37 +8,19 @@ import { pathCampaign, pathHome } from '../lib/routes'
 import { explorerUi } from '../lib/explorerUi'
 import type { HierarchyCampaign } from '../lib/api'
 
-/** 
- * Generates deterministic monochromatic gradients for campaigns.
- */
-function getCampaignStyles(name: string) {
-  const hash = name.split('').reduce((acc, char) => char.charCodeAt(0) + ((acc << 5) - acc), 0)
-  const colors = [
-    { cover: 'from-blue-500/80 to-blue-600/90', tag: 'bg-blue-50 text-blue-700 border-blue-100' },
-    { cover: 'from-purple-500/80 to-purple-600/90', tag: 'bg-purple-50 text-purple-700 border-purple-100' },
-    { cover: 'from-emerald-500/80 to-emerald-600/90', tag: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
-    { cover: 'from-orange-500/80 to-orange-600/90', tag: 'bg-orange-50 text-orange-700 border-orange-100' },
-    { cover: 'from-cyan-500/80 to-cyan-600/90', tag: 'bg-cyan-50 text-cyan-700 border-cyan-100' },
-    { cover: 'from-amber-500/80 to-amber-600/90', tag: 'bg-amber-50 text-amber-700 border-amber-100' },
-  ]
-  return colors[Math.abs(hash) % colors.length]
-}
-
 function CampaignCard({ campaign: c, advertiserSlug }: { campaign: HierarchyCampaign, advertiserSlug: string }) {
-  const styles = useMemo(() => getCampaignStyles(c.label), [c.label])
-
   return (
     <Link to={pathCampaign(advertiserSlug, c.slug)} className={explorerUi.notionCard}>
-      <div className={`${explorerUi.notionCover} ${styles.cover}`} />
+      <div className={explorerUi.notionCover} />
       <div className={explorerUi.notionBody}>
         <h3 className={explorerUi.notionTitle}>{c.label}</h3>
         <div className={explorerUi.notionMeta}>
-          <span className={`${explorerUi.notionTag} ${styles.tag} border`}>
+          <span className={`${explorerUi.notionTag} ${explorerUi.getTagColor(c.kpi_goal ?? 'none')} border uppercase tracking-widest`}>
             KPI: {(c.kpi_goal ?? 'none').trim() || 'none'}
           </span>
         </div>
         <div className={explorerUi.notionStat}>
-          {c.creatives.length} {PAGE_SECTION.creatives.toLowerCase()}
+          {c.creatives.length} {PAGE_SECTION.creatives}
         </div>
       </div>
     </Link>
@@ -64,7 +46,7 @@ export function AdvertiserDetailPage() {
   if (advertisers && !advertiser) {
     return (
       <div className={explorerUi.notFoundWrap}>
-        <BackNavLink to={pathHome()}>{UI_COPY.backToAdvertisers}</BackNavLink>
+        <BackNavLink to={pathHome()}>← {UI_COPY.backToAdvertisers}</BackNavLink>
         <p className={explorerUi.notFoundBody}>{UI_COPY.noAdvertiserMatch}</p>
       </div>
     )
@@ -78,7 +60,7 @@ export function AdvertiserDetailPage() {
     <div className={explorerUi.pageWrap}>
       <div className={explorerUi.headerRow}>
         <div>
-          <BackNavLink to={pathHome()}>{UI_COPY.backToAdvertisers}</BackNavLink>
+          <BackNavLink to={pathHome()}>← {UI_COPY.backToAdvertisers}</BackNavLink>
           <h1 className={explorerUi.title}>{advertiser.label}</h1>
           <p className={explorerUi.subtitle}>{formatMetaLine(advertiser.vertical, advertiser.hq_region)}</p>
         </div>

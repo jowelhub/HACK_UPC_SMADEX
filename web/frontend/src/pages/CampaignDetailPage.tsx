@@ -90,7 +90,7 @@ export function CampaignDetailPage() {
   if (advertisers && (!advertiser || !campaign)) {
     return (
       <div className={explorerUi.notFoundWrap}>
-        <BackNavLink to={pathHome()}>{UI_COPY.backToAdvertisers}</BackNavLink>
+        <BackNavLink to={pathHome()}>← {UI_COPY.backToAdvertisers}</BackNavLink>
         <p className={explorerUi.notFoundBody}>{UI_COPY.campaignNotFound}</p>
       </div>
     )

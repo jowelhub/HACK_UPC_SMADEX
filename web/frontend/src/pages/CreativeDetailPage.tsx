@@ -107,7 +107,7 @@ export function CreativeDetailPage() {
   if (advertisers && !advertiser) {
     return (
       <div className={explorerUi.notFoundWrap}>
-        <BackNavLink to={pathHome()}>{UI_COPY.backToAdvertisers}</BackNavLink>
+        <BackNavLink to={pathHome()}>← {UI_COPY.backToAdvertisers}</BackNavLink>
         <p className={explorerUi.notFoundBody}>{UI_COPY.unknownAdvertiser}</p>
       </div>
     )
