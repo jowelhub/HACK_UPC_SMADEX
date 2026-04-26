@@ -258,6 +258,29 @@ function buildSlimCampaignCreativesPack(params: {
   return { context, insightMode: 'campaign_creatives' }
 }
 
+function buildSlimCreativePack(params: {
+  headline: string
+  subtitleLines: string[]
+  dateFrom: string
+  dateTo: string
+  data: PerformanceQueryResponse
+}): PerformanceInsightPack {
+  const { headline, subtitleLines, dateFrom, dateTo, data } = params
+  const s = data.summary!
+  const scope = [
+    `TASK: Analyze this single creative in plain language for a marketer.`,
+    `Creative: ${headline}`,
+    ...subtitleLines.filter(Boolean),
+    `Dates: ${dateFrom} → ${dateTo}`,
+  ].join('\n')
+  const perf = [
+    `Rollup: spend USD ${fmt(s.total_spend_usd as number, 0)}, impressions ${fmt(s.total_impressions as number, 0)}, clicks ${fmt(s.total_clicks as number, 0)}, conversions ${fmt(s.total_conversions as number, 0)}, revenue USD ${fmt(s.total_revenue_usd as number)}, CTR ${fmtPct(s.overall_ctr as number)}, CPA ${fmt(s.overall_cpa_usd as number)}, ROAS ${fmt(s.overall_roas as number)}.`,
+  ].join('\n')
+  const tsLine = timeseriesDigest(data.timeseries)
+  const context = [scope, '', perf, tsLine ? `\n${tsLine}` : ''].join('\n')
+  return { context, insightMode: 'campaign_creatives' }
+}
+
 /**
  * Builds the user message (and optional mode) sent to `/api/agent/insight`.
  * Campaign + portfolio uses a shorter, creative-only prompt for speed.
@@ -287,6 +310,16 @@ export function buildPerformanceInsightContext(params: {
       dateTo,
       data,
       campaignPortfolio,
+    })
+  }
+
+  if (entity === 'creative' && data) {
+    return buildSlimCreativePack({
+      headline,
+      subtitleLines,
+      dateFrom,
+      dateTo,
+      data,
     })
   }
 

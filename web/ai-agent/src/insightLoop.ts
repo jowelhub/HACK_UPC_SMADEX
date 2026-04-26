@@ -50,11 +50,12 @@ If you see clear risks (e.g. CPA high relative to scale, ROAS below 1, very low 
 Never write "Output truncated" or meta-notes about response limits — finish on actionable substance only.`
 
 /** Fast path: all facts are in the user message — no tools, short answer. */
-export const CAMPAIGN_CREATIVES_INSIGHT_SYSTEM = `You help a performance marketer compare creatives inside ONE campaign. The user message already contains every number you need: per-creative delivery (spend, CTR, CPA, ROAS, conversions), seeded fatigue/status labels, PCA coordinates, closest-pair distance, and quick contrasts.
+export const CAMPAIGN_CREATIVES_INSIGHT_SYSTEM = `You help a performance marketer with fast, practical insight. The user message already contains every number you need.
 
 Rules:
 • Write ONE tight paragraph (3–5 sentences). Plain language only — no markdown headings, bullets, SQL, or APIs.
-• Focus ONLY on comparing the creatives: who is stronger or weaker on delivery metrics in the window, who is fatigued vs stable and whether that lines up with delivery, which IDs are unusually close in PCA space (possible redundancy) vs well spread (diversity), and the most interesting contrast between two creatives if obvious.
+• If the scope includes multiple creatives, focus on comparison: who is stronger/weaker on delivery metrics, how seeded status aligns (or not), and any PCA proximity/spread hints when present.
+• If the scope is a single creative, summarize trajectory and risk/opportunity from the provided metrics/time series only.
 • Use the QUICK CONTRASTS and spend_rank lines — do not invent IDs or metrics.
 • If PCA is missing, still compare delivery + seeded labels only.
 • Never write the phrase "Output truncated" or similar notes about token limits — end on substance only.`
