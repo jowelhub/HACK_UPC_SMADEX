@@ -1,7 +1,7 @@
 import { Link, Outlet, useLocation } from 'react-router-dom'
 import { pathCopilot, pathHome } from '../lib/routes'
 
-const secondaryNav = [{ to: pathCopilot(), label: 'NL → SQL' }] as const
+const secondaryNav = [{ to: pathCopilot(), label: 'Copilot' }] as const
 
 export function Layout() {
   const loc = useLocation()

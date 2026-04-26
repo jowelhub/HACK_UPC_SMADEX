@@ -274,12 +274,7 @@ export function ChatPage() {
     <div className="mx-auto flex h-full min-h-0 w-full min-w-0 max-w-3xl flex-col">
       {composerDocked ? (
         <header className="shrink-0 border-b border-stone-200/50 pb-3 sm:pb-4">
-          <h1 className="font-display text-2xl font-semibold tracking-tight text-stone-900">
-            Natural language to SQL copilot
-          </h1>
-          <div className="mt-1.5">
-            <CopilotSubtitle align="left" />
-          </div>
+          <CopilotSubtitle align="left" />
         </header>
       ) : (
         <header className="shrink-0 pb-3 text-center">
