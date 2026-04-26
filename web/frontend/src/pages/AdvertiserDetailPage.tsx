@@ -46,6 +46,9 @@ export function AdvertiserDetailPage() {
           {advertiser.campaigns.map((c) => (
             <Link key={c.campaign_id} to={pathCampaign(advertiser.slug, c.slug)} className={explorerUi.campaignNavButton}>
               <span className="block font-medium">{c.label}</span>
+              <span className="mt-1 block text-xs font-normal text-stone-500">
+                KPI goal: {(c.kpi_goal ?? 'none').trim() || 'none'}
+              </span>
             </Link>
           ))}
         </div>

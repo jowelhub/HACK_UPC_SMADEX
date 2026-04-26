@@ -20,10 +20,10 @@ const EMPTY_INSIGHT_FALLBACK =
 
 function parseSseDataLines(buffer: string): { events: StreamEvent[]; rest: string } {
   const events: StreamEvent[] = []
-  const parts = buffer.split('\n\n')
+  const parts = buffer.split(/\r?\n\r?\n/)
   const rest = parts.pop() ?? ''
   for (const block of parts) {
-    for (const line of block.split('\n')) {
+    for (const line of block.split(/\r?\n/)) {
       if (!line.startsWith('data:')) continue
       const json = line.slice(5).trim()
       if (!json) continue
@@ -113,6 +113,20 @@ export function LlmInsightPanel({ context, performanceError, panelClassName, ins
             else if (ev.type === 'error') setError(ev.message)
           }
           setText(sanitizeInsightDisplay(acc))
+        }
+        if (buf.trim()) {
+          for (const line of buf.split(/\r?\n/)) {
+            if (!line.startsWith('data:')) continue
+            const j = line.slice(5).trim()
+            if (!j) continue
+            try {
+              const ev = JSON.parse(j) as StreamEvent
+              if (ev.type === 'text') acc += ev.content
+              else if (ev.type === 'error') setError(ev.message)
+            } catch {
+              /* ignore */
+            }
+          }
         }
       } catch (e) {
         if ((e as Error).name === 'AbortError') return
