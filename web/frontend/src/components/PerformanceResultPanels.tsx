@@ -106,7 +106,7 @@ export function PerformanceResultPanels({
   const spendLineName = metricLabel('spend_usd')
 
   const dailySeriesPanel = lockDailySeriesToKpiGoal ? (
-    <div className="surface-panel flex min-h-0 min-w-0 flex-1 flex-col">
+    <div className="surface-panel flex min-h-0 min-w-0 w-full flex-1 flex-col">
       <div className="mb-2 min-w-0">
         <p className="text-xs text-stone-600">
           KPI goal: <span className="font-medium text-stone-800">{kpiGoalLabel}</span>
@@ -176,7 +176,7 @@ export function PerformanceResultPanels({
       </div>
     </div>
   ) : (
-    <div className="surface-panel flex min-h-0 min-w-0 flex-1 flex-col">
+    <div className="surface-panel flex min-h-0 min-w-0 w-full flex-1 flex-col">
       <div className="mb-2 flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end sm:justify-end">
         <div className="flex flex-wrap gap-2">
           <label className="flex items-center gap-1 text-xs text-stone-600">
@@ -304,7 +304,7 @@ export function PerformanceResultPanels({
               >
                 {metricSummaryCards(compact, summary)}
               </div>
-              <div className="flex min-h-0 min-w-0 flex-col max-lg:order-4 max-lg:mx-auto max-lg:max-w-lg lg:col-start-2 lg:row-start-2 lg:mx-0">
+              <div className="flex min-h-0 min-w-0 w-full flex-col max-lg:order-4 lg:col-start-2 lg:row-start-2 lg:mx-0">
                 {dailySeriesPanel}
               </div>
             </div>

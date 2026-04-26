@@ -93,7 +93,7 @@ export function CampaignCreativePcaSection({ data, error, loading }: Props) {
               type="number"
               dataKey="pc2"
               tick={{ fill: '#78716c', fontSize: 11 }}
-              label={{ value: `PC2 (${pc2Pct}% variance)`, angle: -90, position: 'left', fill: '#57534e', fontSize: 11 }}
+              label={{ value: `PC2 (${pc2Pct}% variance)`, angle: -90, position: 'insideLeft', dx: -18, dy: 14, fill: '#57534e', fontSize: 11 }}
             />
             <Tooltip
               cursor={{ strokeDasharray: '3 3' }}
