@@ -90,7 +90,10 @@ class DataStore:
         advertisers = pd.read_sql_table("advertisers", con=engine)
         campaigns = pd.read_sql_table("campaigns", con=engine)
         creatives = pd.read_sql_table("creatives", con=engine)
+        creative_health_scores = pd.read_sql_table("creative_health_scores", con=engine)
         daily = pd.read_sql_table("creative_daily_country_os_stats", con=engine)
+
+        creatives = creatives.merge(creative_health_scores, on="creative_id", how="left")
 
         daily["date"] = pd.to_datetime(daily["date"])
         campaigns["start_date"] = pd.to_datetime(campaigns["start_date"])

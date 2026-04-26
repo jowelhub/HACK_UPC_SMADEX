@@ -20,11 +20,13 @@ SEED_TABLE_ORDER: tuple[tuple[str, str], ...] = (
     ("campaigns", "campaigns_merged.csv"),
     ("creatives", "creative_merged.csv"),
     ("creative_daily_country_os_stats", "creative_daily_country_os_stats.csv"),
+    ("creative_health_scores", "creative_health_scores.csv"),
 )
 
 BACKFILL_TABLE_ORDER: tuple[tuple[str, str], ...] = (
     ("campaigns", "campaigns_merged.csv"),
     ("creatives", "creative_merged.csv"),
+    ("creative_health_scores", "creative_health_scores.csv"),
 )
 
 
