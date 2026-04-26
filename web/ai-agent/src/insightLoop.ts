@@ -93,8 +93,8 @@ export function createInsightReadable(
       const config: GenerateContentConfig = {
         systemInstruction: fast ? CAMPAIGN_CREATIVES_INSIGHT_SYSTEM : PERFORMANCE_INSIGHT_SYSTEM,
         temperature: fast ? 0.35 : 0.65,
-        /** Generous cap avoids MAX_TOKENS mid-sentence; Docker rebuild picks this up. */
-        maxOutputTokens: 4096,
+        /** Fast mode keeps latency low; default mode keeps a generous cap. */
+        maxOutputTokens: fast ? 384 : 4096,
       }
 
       try {

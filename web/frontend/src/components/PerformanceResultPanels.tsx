@@ -47,7 +47,7 @@ function metricSummaryCards(compact: boolean, summary: PerfSummary) {
 
 function creativeSummaryCards(
   compact: boolean,
-  creativeSummary: { status?: string | null; perfScore?: number | null; fatigueDay?: number | null } | null | undefined,
+  creativeSummary: { status?: string | null; fatigueDay?: number | null } | null | undefined,
 ) {
   if (!creativeSummary) return null
   const statusRaw = creativeSummary.status
@@ -56,18 +56,10 @@ function creativeSummaryCards(
     creativeSummary.fatigueDay == null || Number.isNaN(creativeSummary.fatigueDay)
       ? 'none'
       : `day ${creativeSummary.fatigueDay}`
-  const perfScoreValue =
-    creativeSummary.perfScore == null || Number.isNaN(creativeSummary.perfScore)
-      ? null
-      : creativeSummary.perfScore.toFixed(3)
-
   return (
     <>
       {status ? <MetricCard compact={compact} label="Status (seeded)" value={status} /> : null}
       <MetricCard compact={compact} label="Fatigue day" value={fatigueValue} />
-      {perfScoreValue ? (
-        <MetricCard compact={compact} label="Performance score" value={perfScoreValue} hint="0-1" />
-      ) : null}
     </>
   )
 }
@@ -86,7 +78,6 @@ type Props = {
   /** Optional seeded creative info rendered inside the PERFORMANCE block. */
   creativeSummary?: {
     status?: string | null
-    perfScore?: number | null
     fatigueDay?: number | null
   } | null
 }
@@ -139,7 +130,7 @@ export function PerformanceResultPanels({
   const kpiLineName = metricLabel(kpiTimeseriesMetric)
   const spendLineName = metricLabel('spend_usd')
   const hasCreativeSummary = Boolean(
-    creativeSummary?.status != null || creativeSummary?.perfScore != null || creativeSummary?.fatigueDay != null,
+    creativeSummary?.status != null || creativeSummary?.fatigueDay != null,
   )
 
   const dailySeriesPanel = lockDailySeriesToKpiGoal ? (

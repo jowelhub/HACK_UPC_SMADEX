@@ -53,6 +53,10 @@ export function CreativeDetailPage() {
               `Advertiser: ${advertiser.label}`,
               `Campaign: ${campaign.label}`,
               `Creative ID ${creative.creative_id}`,
+              `KPI goal: ${(campaign.kpi_goal ?? 'CPA').trim() || 'CPA'}`,
+              `Total spend (selected range): ${data?.summary?.total_spend_usd != null ? Number(data.summary.total_spend_usd).toLocaleString(undefined, { maximumFractionDigits: 0 }) : 'none'}`,
+              `Seeded status: ${(creative.creative_status ?? 'none').replace(/_/g, ' ')}`,
+              `Fatigue day: ${creative.fatigue_day != null ? `day ${creative.fatigue_day}` : 'none'}`,
             ],
             dateFrom: dates.from,
             dateTo: dates.to,
@@ -116,7 +120,6 @@ export function CreativeDetailPage() {
           kpiGoal={campaign.kpi_goal ?? null}
           creativeSummary={{
             status: creative.creative_status ?? null,
-            perfScore: creative.perf_score ?? null,
             fatigueDay: creative.fatigue_day ?? null,
           }}
         />
