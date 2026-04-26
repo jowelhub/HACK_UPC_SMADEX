@@ -16,7 +16,7 @@ import {
 import { UI_COPY } from '../lib/performanceLabels'
 import { buildCreativeFilters } from '../lib/performanceQueryDefaults'
 import { buildPerformanceInsightContext } from '../lib/performanceInsightContext'
-import { timeseriesMetricFromKpiGoal } from '../lib/performanceFormat'
+import { fmt, fmtPct, timeseriesMetricFromKpiGoal } from '../lib/performanceFormat'
 import { pathAdvertiser, pathCampaign, pathHome } from '../lib/routes'
 import { explorerUi } from '../lib/explorerUi'
 
@@ -65,6 +65,20 @@ export function CreativeDetailPage() {
         : null,
     [advertiser, campaign, creative, dates.from, dates.to, data],
   )
+
+  const fallbackInsight = useMemo(() => {
+    if (!campaign || !creative || !data?.summary) return null
+    const summary = data.summary
+    const kpiGoal = (campaign.kpi_goal ?? 'CPA').trim() || 'CPA'
+    const status = creative.creative_status ? creative.creative_status.replace(/_/g, ' ').toLowerCase() : 'none'
+    const fatigue = creative.fatigue_day != null ? `day ${creative.fatigue_day}` : 'none'
+    return [
+      `KPI goal is ${kpiGoal}.`,
+      `Total spend in the selected range is ${fmt(summary.total_spend_usd as number, 0)} USD.`,
+      `Current delivery shows CTR ${fmtPct(summary.overall_ctr as number)}, CPA ${fmt(summary.overall_cpa_usd as number)} USD, and ROAS ${fmt(summary.overall_roas as number)}.`,
+      `Seeded status is ${status} and fatigue day is ${fatigue}.`,
+    ].join(' ')
+  }, [campaign, creative, data])
 
   const [imgOk, setImgOk] = useState(true)
   useEffect(() => {
@@ -148,6 +162,7 @@ export function CreativeDetailPage() {
             insightMode={insightPack?.insightMode}
             performanceError={err}
             panelClassName="mt-0 h-full"
+            fallbackText={fallbackInsight}
           />
         </div>
       </div>

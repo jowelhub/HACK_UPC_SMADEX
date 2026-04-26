@@ -15,6 +15,9 @@ function sanitizeInsightDisplay(text: string): string {
   return text.replace(/\s*\[Output truncated\.\]\s*/gi, ' ').replace(/\s{2,}/g, ' ').trimEnd()
 }
 
+const EMPTY_INSIGHT_FALLBACK =
+  'No insight was returned. Refresh the page or restart the AI agent if this keeps happening.'
+
 function parseSseDataLines(buffer: string): { events: StreamEvent[]; rest: string } {
   const events: StreamEvent[] = []
   const parts = buffer.split('\n\n')
@@ -41,9 +44,11 @@ type Props = {
   panelClassName?: string
   /** Selects a shorter system prompt + token budget on the ai-agent (no tools). */
   insightMode?: PerformanceInsightMode
+  /** Deterministic local fallback when the model returns no visible text. */
+  fallbackText?: string | null
 }
 
-export function LlmInsightPanel({ context, performanceError, panelClassName, insightMode }: Props) {
+export function LlmInsightPanel({ context, performanceError, panelClassName, insightMode, fallbackText }: Props) {
   const [text, setText] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
@@ -137,7 +142,7 @@ export function LlmInsightPanel({ context, performanceError, panelClassName, ins
           <p className="text-sm text-red-600">{error}</p>
         ) : (
           <p className="whitespace-pre-wrap text-sm leading-relaxed text-stone-700">
-            {text || (busy ? 'Generating insight…' : '')}
+            {text || (busy ? 'Generating insight…' : fallbackText || EMPTY_INSIGHT_FALLBACK)}
           </p>
         )}
       </div>

@@ -111,7 +111,7 @@ export function createInsightReadable(
         for await (const chunk of stream) {
           lastChunk = chunk
           const parts = chunk.candidates?.[0]?.content?.parts ?? []
-          const main = concatTextFromParts(parts, 'main')
+          const main = concatTextFromParts(parts, 'main') || (typeof chunk.text === 'string' ? chunk.text : '')
           const { delta: dMain, next: nMain } = nextDelta(main, lastEmittedMain)
           if (dMain) {
             const cleaned = stripInsightArtifacts(dMain)
@@ -129,6 +129,11 @@ export function createInsightReadable(
         if (!lastChunk) {
           fail('Empty model response')
           return
+        }
+
+        if (!lastEmittedMain) {
+          const fallback = stripInsightArtifacts(typeof lastChunk.text === 'string' ? lastChunk.text : '').trim()
+          if (fallback) send({ type: 'text', content: fallback })
         }
 
         send({ type: 'done' })
