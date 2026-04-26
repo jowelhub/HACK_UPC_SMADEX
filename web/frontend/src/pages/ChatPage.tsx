@@ -291,23 +291,29 @@ export function ChatPage() {
             {pending ? (
               <div className="min-w-0 pl-0.5 sm:pl-0.5">
                 <div className="mb-1.5 text-[10px] font-medium uppercase tracking-wider text-stone-400">Assistant</div>
-                {pending.thought ? (
-                  <details className="mb-2 rounded-xl border border-amber-200/40 bg-amber-50/30">
-                    <summary className="cursor-pointer select-none px-3 py-2 text-xs font-medium text-amber-900/80">
-                      Thinking
-                    </summary>
-                    <div className="border-t border-amber-200/20 px-3 py-2.5">
+                <details
+                  className="mb-2 rounded-xl border border-amber-200/40 bg-amber-50/30"
+                  open={!pending.text}
+                >
+                  <summary className="cursor-pointer select-none px-3 py-2 text-xs font-medium text-amber-900/80">
+                    Thinking
+                  </summary>
+                  <div className="border-t border-amber-200/20 px-3 py-2.5">
+                    {pending.thought ? (
                       <ChatMarkdown compact>{pending.thought}</ChatMarkdown>
-                    </div>
-                  </details>
-                ) : null}
+                    ) : (
+                      <p className="text-xs leading-relaxed text-amber-900/70">
+                        {busy
+                          ? 'Waiting for reasoning tokens from the model…'
+                          : 'No separate reasoning stream for this reply.'}
+                      </p>
+                    )}
+                  </div>
+                </details>
                 {pending.text ? (
                   <div className="min-w-0 text-stone-800">
                     <ChatMarkdown>{pending.text}</ChatMarkdown>
                   </div>
-                ) : null}
-                {busy && !pending.text && !pending.thought ? (
-                  <p className="text-sm text-stone-500">…</p>
                 ) : null}
               </div>
             ) : null}
@@ -344,9 +350,6 @@ export function ChatPage() {
               </button>
             </div>
           </div>
-          <p className="mt-2.5 pr-0.5 text-right text-[10px] text-stone-400 sm:text-[11px]">
-            Enter to send · Shift+Enter for new line
-          </p>
         </div>
       </form>
     </div>

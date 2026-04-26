@@ -154,8 +154,9 @@ export function createCopilotReadable(
         }
       }
 
+      // Gemma: MINIMAL often omits streamed `part.thought` chunks, so the UI had nothing to show.
       const thinkingLevel = model.toLowerCase().includes('gemma')
-        ? ThinkingLevel.MINIMAL
+        ? ThinkingLevel.LOW
         : ThinkingLevel.HIGH
 
       const baseConfig: GenerateContentConfig = {
