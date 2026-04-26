@@ -292,15 +292,11 @@ export function PerformanceResultPanels({
       {summary ? (
         <>
           {topRowSplit ? (
-            <div className="mb-5 grid max-lg:grid-cols-1 max-lg:gap-4 lg:grid-cols-[minmax(0,min(24rem,36vw))_minmax(0,1fr)] lg:gap-x-4 lg:gap-y-3 xl:gap-x-6">
-              <h2
-                className={`${explorerUi.performanceLabel} max-lg:order-1 lg:col-start-1 lg:row-start-1 lg:self-end`}
-              >
+            <div className="mb-5 grid max-lg:grid-cols-1 max-lg:gap-4 lg:grid-cols-[minmax(0,min(24rem,36vw))_minmax(0,1fr)] lg:items-start lg:gap-x-4 lg:gap-y-3 lg:content-start xl:gap-x-6">
+              <h2 className={`${explorerUi.performanceLabel} max-lg:order-1 lg:col-start-1 lg:row-start-1`}>
                 {PERFORMANCE_SECTION.heading}
               </h2>
-              <h2
-                className={`${explorerUi.performanceLabel} max-lg:order-3 lg:col-start-2 lg:row-start-1 lg:self-end`}
-              >
+              <h2 className={`${explorerUi.performanceLabel} max-lg:order-3 lg:col-start-2 lg:row-start-1`}>
                 {DAILY_SERIES_SECTION.heading}
               </h2>
               <div
