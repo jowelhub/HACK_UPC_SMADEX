@@ -11,6 +11,13 @@ export type PerformanceInsightPack = {
   insightMode?: PerformanceInsightMode
 }
 
+type CreativeSignals = {
+  healthScore?: number | null
+  shapJson?: any
+  dailyHazardsJson?: any
+  fatigueDay?: number | null
+}
+
 function timeseriesDigest(ts: Array<Record<string, unknown>> | undefined): string | null {
   if (!ts?.length) return null
   const sorted = [...ts].sort((a, b) => String(a.date).localeCompare(String(b.date)))
@@ -209,6 +216,104 @@ function deliveryContrasts(breakdown: Array<Record<string, unknown>> | undefined
   return `QUICK CONTRASTS (same filtered delivery rows):\n${parts.join(' ')}`
 }
 
+function healthBandLabel(score: number | null | undefined): string | null {
+  if (score == null || Number.isNaN(score)) return null
+  if (score >= 85) return 'scale-ready'
+  if (score >= 65) return 'monitor'
+  return 'high risk / pause'
+}
+
+function explainabilityBlock(signals: CreativeSignals | undefined): string | null {
+  const score = signals?.healthScore
+  const shap = signals?.shapJson
+  if ((score == null || Number.isNaN(score)) && !shap) return null
+
+  const lines: string[] = ['CREATIVE EXPLAINABILITY (DB-backed health model):']
+  if (score != null && !Number.isNaN(score)) {
+    const band = healthBandLabel(score)
+    lines.push(`Health score ${score}/100${band ? ` (${band})` : ''}.`)
+  }
+
+  const factors = Array.isArray(shap?.factors) ? [...shap.factors] : []
+  if (factors.length) {
+    factors.sort((a, b) => Math.abs(Number(b?.shap_value ?? 0)) - Math.abs(Number(a?.shap_value ?? 0)))
+    const top = factors.slice(0, 3).map((f) => {
+      const feature = String(f?.feature ?? '?').replace(/_/g, ' ')
+      const shapValue = Number(f?.shap_value ?? 0)
+      const value = f?.value != null ? String(f.value) : '?'
+      const dir = shapValue > 0 ? 'increases risk' : 'decreases risk'
+      return `${feature}=${value} (${dir}; SHAP ${shapValue.toFixed(3)})`
+    })
+    lines.push(`Top feature impacts: ${top.join('; ')}.`)
+  }
+
+  const survival = Array.isArray(shap?.survival_curve) ? [...shap.survival_curve] : []
+  if (survival.length) {
+    const sorted = survival.sort((a, b) => Number(a?.day ?? 0) - Number(b?.day ?? 0))
+    const last = sorted[sorted.length - 1]
+    const lastDay = Number(last?.day ?? 0)
+    const lastProb = Number(last?.prob ?? NaN)
+    const firstBelow50 = sorted.find((r) => Number(r?.prob ?? NaN) < 0.5)
+    if (Number.isFinite(lastProb)) {
+      const tail = `Estimated survival at day ${lastDay}: ${(lastProb * 100).toFixed(1)}%`
+      lines.push(
+        firstBelow50
+          ? `${tail}; first drop below 50% survival around day ${Number(firstBelow50.day)}.`
+          : `${tail}; survival stays above 50% across the available horizon.`,
+      )
+    }
+  }
+
+  return lines.join('\n')
+}
+
+function copilotBlock(signals: CreativeSignals | undefined): string | null {
+  const hazard = signals?.dailyHazardsJson
+  const rows = Array.isArray(hazard?.daily_data) ? [...hazard.daily_data] : []
+  if (!rows.length) return null
+
+  rows.sort((a, b) => Number(a?.day ?? 0) - Number(b?.day ?? 0))
+  const targetDay =
+    signals?.fatigueDay != null ? rows.find((r) => Number(r?.day) === Number(signals.fatigueDay)) : null
+  const latest = targetDay ?? rows[rows.length - 1]
+  const day = Number(latest?.day ?? 0)
+  const hazardScore = Number(latest?.hazard_score ?? NaN)
+  const recommendation = String(latest?.recommendation ?? 'unknown')
+  const features = latest?.features ?? {}
+  const ctrVsPeak = Number(features?.ctr_vs_peak ?? NaN)
+  const cvrVsPeak = Number(features?.cvr_vs_peak ?? NaN)
+  const spendVelocity = Number(features?.spend_velocity_7d ?? NaN)
+
+  const lines: string[] = ['POST-LAUNCH COPILOT (DB-backed dynamic hazard):']
+  const base = [
+    `Day ${day}`,
+    `recommendation ${recommendation}`,
+    Number.isFinite(hazardScore) ? `relative hazard ${hazardScore.toFixed(2)}x` : null,
+  ]
+    .filter(Boolean)
+    .join(', ')
+  lines.push(`${base}.`)
+
+  const featureBits = [
+    Number.isFinite(ctrVsPeak) ? `CTR vs peak ${(ctrVsPeak * 100).toFixed(0)}%` : null,
+    Number.isFinite(cvrVsPeak) ? `CVR vs peak ${(cvrVsPeak * 100).toFixed(0)}%` : null,
+    Number.isFinite(spendVelocity) ? `7D spend velocity USD ${fmt(spendVelocity, 0)}` : null,
+  ].filter(Boolean)
+  if (featureBits.length) lines.push(`Dynamic signals: ${featureBits.join(', ')}.`)
+
+  const topDrivers = Array.isArray(hazard?.top_drivers) ? hazard.top_drivers.slice(0, 3) : []
+  if (topDrivers.length) {
+    const drivers = topDrivers.map((d: any) => {
+      const feature = String(d?.feature ?? '?').replace(/_/g, ' ')
+      const hr = Number(d?.hr ?? NaN)
+      return Number.isFinite(hr) ? `${feature} (HR ${hr.toFixed(2)})` : feature
+    })
+    lines.push(`Top hazard drivers: ${drivers.join('; ')}.`)
+  }
+
+  return lines.join('\n')
+}
+
 function buildSlimCampaignCreativesPack(params: {
   headline: string
   subtitleLines: string[]
@@ -264,8 +369,9 @@ function buildSlimCreativePack(params: {
   dateFrom: string
   dateTo: string
   data: PerformanceQueryResponse
+  creativeSignals?: CreativeSignals
 }): PerformanceInsightPack {
-  const { headline, subtitleLines, dateFrom, dateTo, data } = params
+  const { headline, subtitleLines, dateFrom, dateTo, data, creativeSignals } = params
   const s = data.summary!
   const scope = [
     `TASK: Analyze this single creative in plain language for a marketer.`,
@@ -279,7 +385,9 @@ function buildSlimCreativePack(params: {
     `Rollup: spend USD ${fmt(s.total_spend_usd as number, 0)}, impressions ${fmt(s.total_impressions as number, 0)}, clicks ${fmt(s.total_clicks as number, 0)}, conversions ${fmt(s.total_conversions as number, 0)}, revenue USD ${fmt(s.total_revenue_usd as number)}, CTR ${fmtPct(s.overall_ctr as number)}, CPA ${fmt(s.overall_cpa_usd as number)}, ROAS ${fmt(s.overall_roas as number)}.`,
   ].join('\n')
   const tsLine = timeseriesDigest(data.timeseries)
-  const context = [scope, '', perf, tsLine ? `\n${tsLine}` : ''].join('\n')
+  const explainability = explainabilityBlock(creativeSignals)
+  const copilot = copilotBlock(creativeSignals)
+  const context = [scope, '', perf, tsLine ? `\n${tsLine}` : '', explainability ? `\n${explainability}` : '', copilot ? `\n${copilot}` : ''].join('\n')
   return { context, insightMode: 'campaign_creatives' }
 }
 
@@ -294,13 +402,14 @@ export function buildPerformanceInsightContext(params: {
   dateFrom: string
   dateTo: string
   data: PerformanceQueryResponse | null
+  creativeSignals?: CreativeSignals
   campaignPortfolio?: {
     creatives: HierarchyCreative[]
     pca: CampaignCreativePcaResponse | null
     pcaFetchError?: string | null
   }
 }): PerformanceInsightPack | null {
-  const { entity, headline, subtitleLines, dateFrom, dateTo, data, campaignPortfolio } = params
+  const { entity, headline, subtitleLines, dateFrom, dateTo, data, campaignPortfolio, creativeSignals } = params
   const summary = data?.summary
   if (!summary) return null
 
@@ -322,6 +431,7 @@ export function buildPerformanceInsightContext(params: {
       dateFrom,
       dateTo,
       data,
+      creativeSignals,
     })
   }
 

@@ -55,7 +55,10 @@ export const CAMPAIGN_CREATIVES_INSIGHT_SYSTEM = `You help a performance markete
 Rules:
 • Write ONE tight paragraph (3–5 sentences). Plain language only — no markdown headings, bullets, SQL, or APIs.
 • If the scope includes multiple creatives, focus on comparison: who is stronger/weaker on delivery metrics, how seeded status aligns (or not), and any PCA proximity/spread hints when present.
-• If the scope is a single creative, summarize trajectory and risk/opportunity from the provided metrics/time series only.
+• If the scope is a single creative, combine delivery metrics, daily series, Creative Explainability, and Post-Launch Copilot blocks when present.
+• For a single creative, do more than restate KPIs: give a clear action bias such as scale, hold, refresh, or pause, and explain why.
+• Treat very low health scores, high hazard recommendations, sharp drops vs peak, or sub-50% survival runway as strong risk evidence.
+• Mention 1-2 concrete drivers from SHAP or hazard inputs when available, but do not invent causal claims beyond the provided numbers.
 • Use the QUICK CONTRASTS and spend_rank lines — do not invent IDs or metrics.
 • If PCA is missing, still compare delivery + seeded labels only.
 • Never write the phrase "Output truncated" or similar notes about token limits — end on substance only.`

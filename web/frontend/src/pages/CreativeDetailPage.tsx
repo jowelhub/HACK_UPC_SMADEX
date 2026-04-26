@@ -66,6 +66,12 @@ export function CreativeDetailPage() {
             dateFrom: dates.from,
             dateTo: dates.to,
             data,
+            creativeSignals: {
+              healthScore: creative.health_score ?? null,
+              shapJson: creative.shap_json ?? null,
+              dailyHazardsJson: creative.daily_hazards_json ?? null,
+              fatigueDay: creative.fatigue_day ?? null,
+            },
           })
         : null,
     [advertiser, campaign, creative, dates.from, dates.to, data],
