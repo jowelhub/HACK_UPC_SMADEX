@@ -63,7 +63,6 @@ export function CampaignDetailPage() {
   const insightPack = useMemo(() => {
     if (!advertiser || !campaign || !dates.from || !dates.to) return null
     if (!data?.summary) return null
-    if (pcaLoading) return null
     return buildPerformanceInsightContext({
       entity: 'campaign',
       headline: campaign.label,
@@ -77,7 +76,7 @@ export function CampaignDetailPage() {
       data,
       campaignPortfolio: {
         creatives: campaign.creatives,
-        pca: pcaErr ? null : pca,
+        pca: pcaLoading || pcaErr ? null : pca,
         pcaFetchError: pcaErr,
       },
     })
@@ -147,18 +146,12 @@ export function CampaignDetailPage() {
           <CampaignCreativePcaSection data={pca} error={pcaErr} loading={pcaLoading} />
         </div>
         <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:min-w-[min(100%,18rem)]">
-          {pcaLoading ? (
-            <div className="surface-panel flex min-h-[8rem] flex-1 items-center justify-center border-stone-200/80 text-sm text-stone-500 lg:min-h-[12rem]">
-              Loading portfolio data for insight…
-            </div>
-          ) : (
-            <LlmInsightPanel
-              context={insightPack?.context ?? null}
-              insightMode={insightPack?.insightMode}
-              performanceError={err}
-              panelClassName="mt-0 flex min-h-[8rem] flex-1 flex-col lg:min-h-[12rem]"
-            />
-          )}
+          <LlmInsightPanel
+            context={insightPack?.context ?? null}
+            insightMode={insightPack?.insightMode}
+            performanceError={err}
+            panelClassName="mt-0 flex min-h-[8rem] flex-1 flex-col lg:min-h-[12rem]"
+          />
         </div>
       </div>
     </div>
