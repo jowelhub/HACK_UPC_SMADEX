@@ -56,6 +56,11 @@ type Props = {
   lockDailySeriesToKpiGoal?: boolean
   /** Raw `kpi_goal` from hierarchy (e.g. CPA, ROAS); used when `lockDailySeriesToKpiGoal`. */
   kpiGoal?: string | null
+  /** Optional seeded creative info rendered inside the PERFORMANCE block. */
+  creativeSummary?: {
+    status?: string | null
+    perfScore?: number | null
+  } | null
 }
 
 export function PerformanceResultPanels({
@@ -65,6 +70,7 @@ export function PerformanceResultPanels({
   compactMetrics,
   lockDailySeriesToKpiGoal,
   kpiGoal,
+  creativeSummary,
 }: Props) {
   const [barMetric, setBarMetric] = useState<MetricKey>('spend_usd')
   const [tsLeft, setTsLeft] = useState<MetricKey>('ctr')
@@ -104,6 +110,7 @@ export function PerformanceResultPanels({
   const kpiGoalLabel = (kpiGoal && String(kpiGoal).trim()) || 'CPA'
   const kpiLineName = metricLabel(kpiTimeseriesMetric)
   const spendLineName = metricLabel('spend_usd')
+  const hasCreativeSummary = Boolean(creativeSummary?.status != null || creativeSummary?.perfScore != null)
 
   const dailySeriesPanel = lockDailySeriesToKpiGoal ? (
     <div className="surface-panel flex min-h-0 min-w-0 w-full flex-1 flex-col">
@@ -302,6 +309,21 @@ export function PerformanceResultPanels({
               <div
                 className={`grid min-w-0 grid-cols-2 gap-2 sm:gap-2.5 max-lg:order-2 lg:col-start-1 lg:row-start-2 lg:w-full lg:max-w-[min(24rem,36vw)] xl:max-w-[min(26rem,32vw)]`}
               >
+                {hasCreativeSummary ? (
+                  <div className="col-span-2 min-w-0 rounded border border-stone-200 bg-white px-3 py-2">
+                    <div className="text-[10px] font-medium uppercase tracking-wide text-stone-500">Creative summary (seeded)</div>
+                    {creativeSummary?.status != null ? (
+                      <div className="mt-0.5 text-sm text-stone-700">
+                        Status: <span className="font-medium">{creativeSummary.status.replace(/_/g, ' ')}</span>
+                      </div>
+                    ) : null}
+                    {creativeSummary?.perfScore != null ? (
+                      <div className="mt-0.5 text-sm text-stone-700">
+                        Performance score: <span className="font-medium">{creativeSummary.perfScore.toFixed(3)}</span> (0–1)
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
                 {metricSummaryCards(compact, summary)}
               </div>
               <div className="flex min-h-0 min-w-0 w-full flex-col max-lg:order-4 lg:col-start-2 lg:row-start-2 lg:mx-0">
@@ -312,7 +334,24 @@ export function PerformanceResultPanels({
             <>
               <h2 className={explorerUi.performanceLabel}>{PERFORMANCE_SECTION.heading}</h2>
               <div className="mb-5">
-                <div className="grid min-w-0 grid-cols-2 gap-2 sm:gap-2.5">{metricSummaryCards(compact, summary)}</div>
+                <div className="grid min-w-0 grid-cols-2 gap-2 sm:gap-2.5">
+                  {hasCreativeSummary ? (
+                    <div className="col-span-2 min-w-0 rounded border border-stone-200 bg-white px-3 py-2">
+                      <div className="text-[10px] font-medium uppercase tracking-wide text-stone-500">Creative summary (seeded)</div>
+                      {creativeSummary?.status != null ? (
+                        <div className="mt-0.5 text-sm text-stone-700">
+                          Status: <span className="font-medium">{creativeSummary.status.replace(/_/g, ' ')}</span>
+                        </div>
+                      ) : null}
+                      {creativeSummary?.perfScore != null ? (
+                        <div className="mt-0.5 text-sm text-stone-700">
+                          Performance score: <span className="font-medium">{creativeSummary.perfScore.toFixed(3)}</span> (0–1)
+                        </div>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  {metricSummaryCards(compact, summary)}
+                </div>
               </div>
             </>
           )}

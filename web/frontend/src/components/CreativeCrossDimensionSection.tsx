@@ -22,10 +22,12 @@ const DIM_TITLES: Record<(typeof DIM_ORDER)[number], string> = {
 type Props = {
   data: PerformanceQueryResponse | null
   queryError: string | null
+  fixedMetric?: MetricKey
 }
 
-export function CreativeCrossDimensionSection({ data, queryError }: Props) {
+export function CreativeCrossDimensionSection({ data, queryError, fixedMetric }: Props) {
   const [barMetric, setBarMetric] = useState<MetricKey>('ctr')
+  const selectedMetric = fixedMetric ?? barMetric
 
   const breakdowns = data?.breakdowns
 
@@ -35,7 +37,7 @@ export function CreativeCrossDimensionSection({ data, queryError }: Props) {
       const raw = breakdowns[dim] as Array<Record<string, unknown>> | undefined
       if (!raw?.length) return { dim, title: DIM_TITLES[dim], barData: [] as { name: string; v: number }[] }
       const rows = [...raw] as Array<Record<string, unknown> & { label?: string }>
-      const k = barMetric
+      const k = selectedMetric
       rows.sort((a, b) => Number(b[k] ?? 0) - Number(a[k] ?? 0))
       const barData = rows.slice(0, 16).map((r) => ({
         name: String(r.label ?? r[dim] ?? '?').slice(0, 36),
@@ -43,7 +45,7 @@ export function CreativeCrossDimensionSection({ data, queryError }: Props) {
       }))
       return { dim, title: DIM_TITLES[dim], barData }
     })
-  }, [breakdowns, barMetric])
+  }, [breakdowns, selectedMetric])
 
   if (queryError) return null
   if (!data?.summary) return null
@@ -56,22 +58,23 @@ export function CreativeCrossDimensionSection({ data, queryError }: Props) {
       <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div>
           <h2 className={explorerUi.sectionTitle}>{CREATIVE_CROSS_DIM.heading}</h2>
-          <p className="mt-1 max-w-3xl text-sm text-stone-600">{CREATIVE_CROSS_DIM.subline}</p>
         </div>
-        <label className="flex min-w-0 items-center gap-1 text-xs text-stone-600">
-          <span className="shrink-0 text-stone-500">Chart metric</span>
-          <select
-            className="input max-w-full py-1 text-xs"
-            value={barMetric}
-            onChange={(e) => setBarMetric(e.target.value as MetricKey)}
-          >
-            {METRIC_OPTIONS.map((m) => (
-              <option key={m.key} value={m.key}>
-                {m.label}
-              </option>
-            ))}
-          </select>
-        </label>
+        {!fixedMetric ? (
+          <label className="flex min-w-0 items-center gap-1 text-xs text-stone-600">
+            <span className="shrink-0 text-stone-500">Chart metric</span>
+            <select
+              className="input max-w-full py-1 text-xs"
+              value={barMetric}
+              onChange={(e) => setBarMetric(e.target.value as MetricKey)}
+            >
+              {METRIC_OPTIONS.map((m) => (
+                <option key={m.key} value={m.key}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        ) : null}
       </div>
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -88,7 +91,7 @@ export function CreativeCrossDimensionSection({ data, queryError }: Props) {
                     <XAxis
                       type="number"
                       tick={{ fill: '#78716c', fontSize: 10 }}
-                      tickFormatter={(v) => formatMetricTick(barMetric, Number(v))}
+                      tickFormatter={(v) => formatMetricTick(selectedMetric, Number(v))}
                     />
                     <YAxis
                       type="category"
@@ -99,9 +102,9 @@ export function CreativeCrossDimensionSection({ data, queryError }: Props) {
                     />
                     <Tooltip
                       {...chartTooltipStyle}
-                      formatter={(v) => [formatMetricValue(barMetric, Number(v)), metricLabel(barMetric)]}
+                      formatter={(v: unknown) => [formatMetricValue(selectedMetric, Number(v)), metricLabel(selectedMetric)]}
                     />
-                    <Bar dataKey="v" name={metricLabel(barMetric)} fill="#0d9488" radius={[0, 2, 2, 0]} />
+                    <Bar dataKey="v" name={metricLabel(selectedMetric)} fill="#0d9488" radius={[0, 2, 2, 0]} />
                   </BarChart>
                 </ResponsiveContainer>
               </div>
