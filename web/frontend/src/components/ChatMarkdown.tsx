@@ -80,7 +80,7 @@ const buildComponents = (opts: { compact?: boolean }): Components => {
     hr: (p) => <hr className="my-3 border-stone-200" {...p} />,
     pre: ({ children, ...p }) => (
       <pre
-        className={`mb-2 overflow-x-auto rounded-lg border border-stone-800 bg-stone-900 p-2.5 text-xs text-stone-100 ${sm ? 'text-[10px]' : ''}`}
+        className={`mb-2 overflow-x-auto rounded-lg border border-stone-200/90 bg-stone-50 p-2.5 font-mono text-xs leading-relaxed text-stone-800 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)] ${sm ? 'text-[10px]' : ''}`}
         {...p}
       >
         {children}
@@ -91,7 +91,10 @@ const buildComponents = (opts: { compact?: boolean }): Components => {
       const isBlock = Boolean(className?.match(/language-/) || className?.includes('hljs'))
       if (isBlock) {
         return (
-          <code className={className} {...rest}>
+          <code
+            className={`${className ?? ''} block whitespace-pre bg-transparent text-stone-800`}
+            {...rest}
+          >
             {children}
           </code>
         )
