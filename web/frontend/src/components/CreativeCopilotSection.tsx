@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine } from 'recharts'
 import { ResponsiveChartWrapper } from './ResponsiveChartWrapper'
+import { explorerUi } from '../lib/explorerUi'
 
 interface Props {
   dailyHazardsJson: any
@@ -21,15 +22,16 @@ export function CreativeCopilotSection({ dailyHazardsJson }: Props) {
   if (!activeDay) return null
 
   return (
-    <div className="mt-8 rounded-md border border-stone-200 bg-white p-4 sm:p-5">
+    <div className="mt-8">
       <div className="mb-4">
-        <h2 className="text-lg font-semibold text-stone-900">Post-Launch Copilot</h2>
-        <p className="mt-1 text-sm text-stone-500">
+        <h2 className={explorerUi.sectionTitle}>Post-launch health</h2>
+        <p className={explorerUi.subtitle}>
           Daily fatigue risk and recommended next action from the post-launch hazard model.
         </p>
       </div>
 
-      <div className="flex flex-col gap-4 lg:flex-row">
+      <div className="rounded-md border border-stone-200 bg-white p-4 sm:p-5">
+        <div className="flex flex-col gap-4 lg:flex-row">
         <div className="flex w-full flex-col gap-4 lg:w-[20rem] lg:shrink-0">
           <div className="rounded-md border border-stone-200 bg-stone-50/80 p-4">
             <div className="mb-2 flex items-center justify-between">
@@ -158,6 +160,7 @@ export function CreativeCopilotSection({ dailyHazardsJson }: Props) {
             <span>Baseline: 1.0x</span>
             <span>High risk: 2.0x</span>
           </div>
+        </div>
         </div>
       </div>
     </div>

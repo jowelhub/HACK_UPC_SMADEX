@@ -1,5 +1,6 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LineChart, Line, CartesianGrid, ReferenceLine } from 'recharts'
 import { ResponsiveChartWrapper } from './ResponsiveChartWrapper'
+import { explorerUi } from '../lib/explorerUi'
 
 interface Props {
   healthScore: number
@@ -15,15 +16,16 @@ export function CreativeExplainabilitySection({ healthScore, shapJson }: Props) 
     healthScore >= 60 ? 'bg-emerald-500' : healthScore >= 30 ? 'bg-amber-500' : 'bg-rose-500'
 
   return (
-    <div className="mt-8 rounded-md border border-stone-200 bg-white p-4 sm:p-5">
+    <div className="mt-8">
       <div className="mb-4">
-        <h2 className="text-lg font-semibold text-stone-900">Creative Health</h2>
-        <p className="mt-1 text-sm text-stone-500">
+        <h2 className={explorerUi.sectionTitle}>Pre-launch health</h2>
+        <p className={explorerUi.subtitle}>
           Model-based drivers behind risk and expected survival.
         </p>
       </div>
-      
-      <div className="flex flex-col gap-4 lg:flex-row">
+
+      <div className="rounded-md border border-stone-200 bg-white p-4 sm:p-5">
+        <div className="flex flex-col gap-4 lg:flex-row">
         <div className="flex shrink-0 flex-col items-center justify-center rounded-md border border-stone-200 bg-stone-50/80 p-5 lg:w-48">
           <div className="text-sm font-medium text-stone-500">Health score</div>
           <div className="relative mt-4 flex h-32 w-8 flex-col-reverse overflow-hidden rounded-full bg-stone-200">
@@ -127,6 +129,7 @@ export function CreativeExplainabilitySection({ healthScore, shapJson }: Props) 
             </div>
           </div>
         )}
+        </div>
       </div>
     </div>
   )
