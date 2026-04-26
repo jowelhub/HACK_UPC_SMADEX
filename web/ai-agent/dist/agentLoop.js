@@ -120,9 +120,10 @@ export function createCopilotReadable(client, options) {
                     /* already closed */
                 }
             };
-            const thinkingLevel = model.toLowerCase().includes('gemma')
-                ? ThinkingLevel.MINIMAL
-                : ThinkingLevel.HIGH;
+            // Google AI returns 400 "Thinking level is not supported for this model" for Gemma
+            // (e.g. gemma-4-26b-a4b-it, gemma-4-31b-it). Omit thinkingConfig entirely for those ids.
+            const modelLc = model.toLowerCase();
+            const thinkingSupported = !modelLc.includes('gemma');
             const baseConfig = {
                 systemInstruction,
                 temperature: 0.7,
@@ -132,7 +133,14 @@ export function createCopilotReadable(client, options) {
                     functionCallingConfig: { mode: FunctionCallingConfigMode.AUTO },
                 },
                 automaticFunctionCalling: { disable: true },
-                thinkingConfig: { thinkingLevel, includeThoughts: true },
+                ...(thinkingSupported
+                    ? {
+                        thinkingConfig: {
+                            thinkingLevel: ThinkingLevel.HIGH,
+                            includeThoughts: true,
+                        },
+                    }
+                    : {}),
             };
             let contents = toContents(messages);
             if (!contents.length) {
