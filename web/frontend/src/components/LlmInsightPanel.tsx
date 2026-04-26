@@ -10,9 +10,9 @@ type StreamEvent =
   | { type: 'error'; message: string }
   | { type: 'done' }
 
-/** Strips legacy SSE suffix and model echoes (handles split chunks via final pass). */
 function sanitizeInsightDisplay(text: string): string {
-  return text.replace(/\s*\[Output truncated\.\]\s*/gi, ' ').replace(/\s{2,}/g, ' ').trimEnd()
+  // Simple cleanup, don't over-sanitize or we lose the stream
+  return text.trimStart()
 }
 
 const EMPTY_INSIGHT_FALLBACK =
@@ -37,6 +37,7 @@ function parseSseDataLines(buffer: string): { events: StreamEvent[]; rest: strin
   return { events, rest }
 }
 
+
 type Props = {
   context: string | null
   performanceError: string | null
@@ -44,15 +45,12 @@ type Props = {
   panelClassName?: string
   /** Selects a shorter system prompt + token budget on the ai-agent (no tools). */
   insightMode?: PerformanceInsightMode
-  /** Deterministic local fallback when the model returns no visible text. */
-  fallbackText?: string | null
 }
 
-export function LlmInsightPanel({ context, performanceError, panelClassName, insightMode, fallbackText }: Props) {
+export function LlmInsightPanel({ context, performanceError, panelClassName, insightMode }: Props) {
   const [text, setText] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const [typingFallback, setTypingFallback] = useState('')
 
   const canRun = Boolean(context?.trim()) && !performanceError
 
@@ -61,7 +59,6 @@ export function LlmInsightPanel({ context, performanceError, panelClassName, ins
       setText('')
       setError(null)
       setBusy(false)
-      setTypingFallback('')
       return
     }
 
@@ -69,7 +66,6 @@ export function LlmInsightPanel({ context, performanceError, panelClassName, ins
     setText('')
     setError(null)
     setBusy(true)
-    setTypingFallback('')
 
     void (async () => {
       let res: Response
@@ -115,27 +111,22 @@ export function LlmInsightPanel({ context, performanceError, panelClassName, ins
             if (ev.type === 'text') acc += ev.content
             else if (ev.type === 'error') setError(ev.message)
           }
-          setText(sanitizeInsightDisplay(acc))
+          if (acc) setText(sanitizeInsightDisplay(acc))
         }
+        // Final flush
+        buf += dec.decode()
         if (buf.trim()) {
-          for (const line of buf.split(/\r?\n/)) {
-            if (!line.startsWith('data:')) continue
-            const j = line.slice(5).trim()
-            if (!j) continue
-            try {
-              const ev = JSON.parse(j) as StreamEvent
-              if (ev.type === 'text') acc += ev.content
-              else if (ev.type === 'error') setError(ev.message)
-            } catch {
-              /* ignore */
-            }
+          const { events } = parseSseDataLines(buf + '\n\n')
+          for (const ev of events) {
+            if (ev.type === 'text') acc += ev.content
+            else if (ev.type === 'error') setError(ev.message)
           }
         }
+        setText(sanitizeInsightDisplay(acc))
       } catch (e) {
         if ((e as Error).name === 'AbortError') return
         setError(String(e))
       } finally {
-        setText(sanitizeInsightDisplay(acc))
         setBusy(false)
       }
     })()
@@ -143,24 +134,6 @@ export function LlmInsightPanel({ context, performanceError, panelClassName, ins
     return () => ac.abort()
   }, [canRun, context, performanceError, insightMode])
 
-  useEffect(() => {
-    if (!busy || text || !fallbackText?.trim()) {
-      setTypingFallback('')
-      return
-    }
-
-    let i = 0
-    const source = fallbackText.trim()
-    const timer = window.setInterval(() => {
-      i += 4
-      setTypingFallback(source.slice(0, i))
-      if (i >= source.length) {
-        window.clearInterval(timer)
-      }
-    }, 24)
-
-    return () => window.clearInterval(timer)
-  }, [busy, text, fallbackText])
 
   if (performanceError) {
     return null
@@ -170,15 +143,16 @@ export function LlmInsightPanel({ context, performanceError, panelClassName, ins
     return null
   }
 
+
   return (
     <div className={`flex min-h-0 flex-col ${panelClassName ?? 'mt-5'}`}>
       <h2 className={explorerUi.performanceLabel}>{LLM_INSIGHT_SECTION.heading}</h2>
-      <div className="surface-panel flex min-h-0 flex-1 flex-col border-stone-200/80">
+      <div className="surface-panel flex min-h-0 flex-1 flex-col border-stone-200/80 p-5 overflow-y-auto">
         {error ? (
           <p className="text-sm text-red-600">{error}</p>
         ) : (
           <p className="whitespace-pre-wrap text-sm leading-relaxed text-stone-700">
-            {text || typingFallback || (busy ? 'Generating insight…' : fallbackText || EMPTY_INSIGHT_FALLBACK)}
+            {text || (busy ? 'Generating insight…' : EMPTY_INSIGHT_FALLBACK)}
           </p>
         )}
       </div>

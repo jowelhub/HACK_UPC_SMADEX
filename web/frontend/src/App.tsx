@@ -5,6 +5,7 @@ import { AdvertiserDetailPage } from './pages/AdvertiserDetailPage'
 import { CreativeDetailPage } from './pages/CreativeDetailPage'
 import { ExplorerTwoSegmentPage } from './pages/ExplorerTwoSegmentPage'
 import { ChatPage } from './pages/ChatPage'
+import { CreativeHealthLabPage } from './pages/CreativeHealthLabPage'
 import { ROUTE_PATTERNS } from './lib/routes'
 
 export default function App() {
@@ -16,6 +17,7 @@ export default function App() {
             <Route index element={<AdvertisersHomePage />} />
             <Route path={ROUTE_PATTERNS.copilot} element={<ChatPage />} />
             <Route path={ROUTE_PATTERNS.creativeNested} element={<CreativeDetailPage />} />
+            <Route path={ROUTE_PATTERNS.creativeHealthLab} element={<CreativeHealthLabPage />} />
             <Route path={ROUTE_PATTERNS.advertiserCampaign} element={<ExplorerTwoSegmentPage />} />
             <Route path={ROUTE_PATTERNS.advertiser} element={<AdvertiserDetailPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />

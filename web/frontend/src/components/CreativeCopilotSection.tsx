@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, ReferenceLine } from 'recharts'
 import { ResponsiveChartWrapper } from './ResponsiveChartWrapper'
+
 import { explorerUi } from '../lib/explorerUi'
 
 interface Props {
@@ -23,12 +24,10 @@ export function CreativeCopilotSection({ dailyHazardsJson }: Props) {
 
   return (
     <div className="mt-8">
-      <div className="mb-4">
-        <h2 className={explorerUi.sectionTitle}>Post-launch health</h2>
-        <p className={explorerUi.subtitle}>
-          Daily fatigue risk and recommended next action from the post-launch hazard model.
-        </p>
-      </div>
+      <h2 className={explorerUi.sectionTitle}>Post-launch health</h2>
+      <p className={explorerUi.sectionSubtitle}>
+        Daily fatigue risk and recommended next action from the post-launch hazard model.
+      </p>
 
       <div className="rounded-md border border-stone-200 bg-white p-4 sm:p-5">
         <div className="flex flex-col gap-4 lg:flex-row">

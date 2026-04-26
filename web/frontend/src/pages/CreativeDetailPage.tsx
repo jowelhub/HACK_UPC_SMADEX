@@ -1,12 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { useParams } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { BackNavLink } from '../components/BackNavLink'
 import { CreativeCrossDimensionSection } from '../components/CreativeCrossDimensionSection'
 import { DateRangeFields } from '../components/DateRangeFields'
 import { LlmInsightPanel } from '../components/LlmInsightPanel'
 import { PerformanceResultPanels } from '../components/PerformanceResultPanels'
-import { CreativeExplainabilitySection } from '../components/CreativeExplainabilitySection'
-import { CreativeCopilotSection } from '../components/CreativeCopilotSection'
 import { creativeAssetUrl } from '../lib/api'
 import { useExplorerBootstrap } from '../hooks/useExplorerBootstrap'
 import { usePerformanceSlice } from '../hooks/usePerformanceSlice'
@@ -18,8 +16,8 @@ import {
 import { UI_COPY } from '../lib/performanceLabels'
 import { buildCreativeFilters } from '../lib/performanceQueryDefaults'
 import { buildPerformanceInsightContext } from '../lib/performanceInsightContext'
-import { fmt, fmtPct, timeseriesMetricFromKpiGoal } from '../lib/performanceFormat'
-import { pathAdvertiser, pathCampaign, pathHome } from '../lib/routes'
+import { timeseriesMetricFromKpiGoal } from '../lib/performanceFormat'
+import { pathAdvertiser, pathCampaign, pathHome, pathCreativeHealthLab } from '../lib/routes'
 import { explorerUi } from '../lib/explorerUi'
 
 export function CreativeDetailPage() {
@@ -47,52 +45,43 @@ export function CreativeDetailPage() {
   const { data, err } = usePerformanceSlice(filters, null, creativeSliceOpts)
 
   const insightPack = useMemo(
-    () =>
-      advertiser && campaign && creative && dates.from && dates.to
-        ? buildPerformanceInsightContext({
-            entity: 'creative',
-            headline: creative.label,
-            subtitleLines: [
-              `Advertiser: ${advertiser.label}`,
-              `Campaign: ${campaign.label}`,
-              `Creative ID ${creative.creative_id}`,
-              `KPI goal: ${(campaign.kpi_goal ?? 'CPA').trim() || 'CPA'}`,
-              `Total spend (selected range): ${data?.summary?.total_spend_usd != null ? Number(data.summary.total_spend_usd).toLocaleString(undefined, { maximumFractionDigits: 0 }) : 'none'}`,
-              `Seeded status: ${(creative.creative_status ?? 'none').replace(/_/g, ' ')}`,
-              `Fatigue day: ${creative.fatigue_day != null ? `day ${creative.fatigue_day}` : 'none'}`,
-              `Creative health score: ${creative.health_score != null ? creative.health_score : 'none'}`,
-              'Focus the insight on Post-Launch Copilot (Interactive Hazard) and Creative Explainability (Health & Risk Factors).',
-            ],
-            dateFrom: dates.from,
-            dateTo: dates.to,
-            data,
-            creativeSignals: {
-              healthScore: creative.health_score ?? null,
-              shapJson: creative.shap_json ?? null,
-              dailyHazardsJson: creative.daily_hazards_json ?? null,
-              fatigueDay: creative.fatigue_day ?? null,
-            },
-          })
-        : null,
-    [advertiser, campaign, creative, dates.from, dates.to, data],
+    () => {
+      if (!advertiser || !campaign || !creative || !dates.from || !dates.to || !data) return null
+      return buildPerformanceInsightContext({
+        entity: 'creative',
+        headline: creative.label,
+        subtitleLines: [
+          `Advertiser: ${advertiser.label}`,
+          `Campaign: ${campaign.label}`,
+          `Creative ID ${creative.creative_id}`,
+          `KPI goal: ${(campaign.kpi_goal ?? 'CPA').trim() || 'CPA'}`,
+          `Total spend (selected range): ${data?.summary?.total_spend_usd != null ? Number(data.summary.total_spend_usd).toLocaleString(undefined, { maximumFractionDigits: 0 }) : 'none'}`,
+          `Seeded status: ${(creative.creative_status ?? 'none').replace(/_/g, ' ')}`,
+          `Fatigue day: ${creative.fatigue_day != null ? `day ${creative.fatigue_day}` : 'none'}`,
+          `Creative health score: ${creative.health_score != null ? creative.health_score : 'none'}`,
+          'Focus the insight on Post-Launch Copilot (Interactive Hazard) and Creative Explainability (Health & Risk Factors).',
+        ],
+        dateFrom: dates.from,
+        dateTo: dates.to,
+        data,
+        creativeSignals: {
+          healthScore: creative.health_score ?? null,
+          shapJson: creative.shap_json ?? null,
+          dailyHazardsJson: creative.daily_hazards_json ?? null,
+          fatigueDay: creative.fatigue_day ?? null,
+        },
+      })
+    },
+    [
+      advertiser?.advertiser_id,
+      campaign?.campaign_id,
+      creative?.creative_id,
+      dates.from,
+      dates.to,
+      !!data, // Only re-memoize when data goes from null to present
+    ],
   )
 
-  const fallbackInsight = useMemo(() => {
-    if (!campaign || !creative || !data?.summary) return null
-    const summary = data.summary
-    const kpiGoal = (campaign.kpi_goal ?? 'CPA').trim() || 'CPA'
-    const status = creative.creative_status ? creative.creative_status.replace(/_/g, ' ').toLowerCase() : 'none'
-    const fatigue = creative.fatigue_day != null ? `day ${creative.fatigue_day}` : 'none'
-    return [
-      `KPI goal is ${kpiGoal}.`,
-      `Total spend in the selected range is ${fmt(summary.total_spend_usd as number, 0)} USD.`,
-      `Current delivery shows CTR ${fmtPct(summary.overall_ctr as number)}, CPA ${fmt(summary.overall_cpa_usd as number)} USD, and ROAS ${fmt(summary.overall_roas as number)}.`,
-      `Seeded status is ${status} and fatigue day is ${fatigue}.`,
-      `The creative health score is ${creative.health_score != null ? creative.health_score : 'unknown'}.`,
-      'Frame this through Post-Launch Copilot (Interactive Hazard): explain whether the current delivery and fatigue timing point to scale, hold, or refresh risk after launch.',
-      'Also cover Creative Explainability (Health & Risk Factors): connect the health score to the main creative risk signals and what the marketer should watch next.',
-    ].join(' ')
-  }, [campaign, creative, data])
 
   const [imgOk, setImgOk] = useState(true)
   useEffect(() => {
@@ -137,7 +126,19 @@ export function CreativeDetailPage() {
             <h1 className={explorerUi.title}>Creative #{creative.creative_id}</h1>
           </div>
         </div>
-        <DateRangeFields dateRange={dateRange} dates={dates} onChange={setDates} />
+        <div className="flex items-center gap-4">
+          <Link
+            to={pathCreativeHealthLab(advertiser.slug, campaign.slug, creative.slug)}
+            className="group relative flex items-center gap-2 overflow-hidden rounded-xl bg-brand/10 px-5 py-2.5 text-sm font-bold text-brand ring-1 ring-brand/30 transition-all hover:bg-brand hover:text-white hover:ring-brand hover:shadow-lg hover:shadow-brand/20 active:scale-95"
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+            <svg className="h-5 w-5 transition-transform group-hover:scale-110" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+            </svg>
+            <span className="relative z-10">Survivability Lab</span>
+          </Link>
+          <DateRangeFields dateRange={dateRange} dates={dates} onChange={setDates} />
+        </div>
       </div>
 
       <div className="relative z-10 min-h-0">
@@ -178,19 +179,9 @@ export function CreativeDetailPage() {
             insightMode={insightPack?.insightMode}
             performanceError={err}
             panelClassName="mt-0 h-full"
-            fallbackText={fallbackInsight}
           />
         </div>
 
-        {/* Explainability Section */}
-        {creative.health_score != null && creative.shap_json && (
-          <CreativeExplainabilitySection healthScore={creative.health_score} shapJson={creative.shap_json} />
-        )}
-
-        {/* POST-LAUNCH INTERACTIVE COPILOT */}
-        {creative?.daily_hazards_json && creative.daily_hazards_json.daily_data && creative.daily_hazards_json.daily_data.length > 0 && (
-          <CreativeCopilotSection dailyHazardsJson={creative.daily_hazards_json} />
-        )}
 
       </div>
     </div>

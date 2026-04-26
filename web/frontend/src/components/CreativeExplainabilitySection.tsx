@@ -1,5 +1,6 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LineChart, Line, CartesianGrid, ReferenceLine } from 'recharts'
 import { ResponsiveChartWrapper } from './ResponsiveChartWrapper'
+
 import { explorerUi } from '../lib/explorerUi'
 
 interface Props {
@@ -17,12 +18,10 @@ export function CreativeExplainabilitySection({ healthScore, shapJson }: Props) 
 
   return (
     <div className="mt-8">
-      <div className="mb-4">
-        <h2 className={explorerUi.sectionTitle}>Pre-launch health</h2>
-        <p className={explorerUi.subtitle}>
-          Model-based drivers behind risk and expected survival.
-        </p>
-      </div>
+      <h2 className={explorerUi.sectionTitle}>Pre-launch health</h2>
+      <p className={explorerUi.sectionSubtitle}>
+        Model-based drivers behind risk and expected survival.
+      </p>
 
       <div className="rounded-md border border-stone-200 bg-white p-4 sm:p-5">
         <div className="flex flex-col gap-4 lg:flex-row">

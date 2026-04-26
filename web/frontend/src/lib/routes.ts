@@ -5,6 +5,7 @@
 
 export const ROUTE_SEGMENTS = {
   copilot: 'copilot',
+  lab: 'lab',
 } as const
 
 /** Child route paths under the layout parent (no leading slash). Declare most specific first in <Routes>. */
@@ -12,6 +13,7 @@ export const ROUTE_PATTERNS = {
   copilot: ROUTE_SEGMENTS.copilot,
   /** Creative drill-down: /{advertiser}/{campaign}/{creative} */
   creativeNested: ':advertiserSlug/:campaignSlug/:creativeSlug',
+  creativeHealthLab: ':advertiserSlug/:campaignSlug/:creativeSlug/lab',
   /** Advertiser + campaign or numeric legacy creative id: /{advertiser}/{campaignOrId} */
   advertiserCampaign: ':advertiserSlug/:campaignSlug',
   advertiser: ':advertiserSlug',
@@ -39,6 +41,10 @@ export function pathCampaign(advertiserSlug: string, campaignSlug: string) {
 
 export function pathCreative(advertiserSlug: string, campaignSlug: string, creativeSlug: string) {
   return `/${seg(advertiserSlug)}/${seg(campaignSlug)}/${seg(creativeSlug)}`
+}
+
+export function pathCreativeHealthLab(advertiserSlug: string, campaignSlug: string, creativeSlug: string) {
+  return `/${seg(advertiserSlug)}/${seg(campaignSlug)}/${seg(creativeSlug)}/${ROUTE_SEGMENTS.lab}`
 }
 
 /** Second path segment is only digits (legacy deep-link by creative id). */

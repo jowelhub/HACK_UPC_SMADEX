@@ -82,6 +82,7 @@ export function CampaignDetailPage() {
     })
   }, [advertiser, campaign, dates.from, dates.to, data, pcaLoading, pca, pcaErr])
 
+
   if (loadErr) {
     return <p className={explorerUi.errorMessage}>{loadErr}</p>
   }
@@ -142,7 +143,7 @@ export function CampaignDetailPage() {
       </div>
 
       <div className="flex flex-col gap-5 lg:flex-row lg:items-stretch lg:gap-6">
-        <div className="min-w-0 flex-[1.15] lg:max-w-[min(100%,40rem)]">
+        <div className="min-w-0 flex-[1.15] flex flex-col gap-5 lg:max-w-[min(100%,40rem)]">
           <CampaignCreativePcaSection data={pca} error={pcaErr} loading={pcaLoading} />
         </div>
         <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:min-w-[min(100%,18rem)]">
@@ -150,7 +151,7 @@ export function CampaignDetailPage() {
             context={insightPack?.context ?? null}
             insightMode={insightPack?.insightMode}
             performanceError={err}
-            panelClassName="mt-0 flex min-h-[8rem] flex-1 flex-col lg:min-h-[12rem]"
+            panelClassName="mt-0 flex min-h-[4rem] flex-1 flex-col lg:min-h-[6rem]"
           />
         </div>
       </div>

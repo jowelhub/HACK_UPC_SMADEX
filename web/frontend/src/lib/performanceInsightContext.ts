@@ -388,7 +388,7 @@ function buildSlimCreativePack(params: {
   const explainability = explainabilityBlock(creativeSignals)
   const copilot = copilotBlock(creativeSignals)
   const context = [scope, '', perf, tsLine ? `\n${tsLine}` : '', explainability ? `\n${explainability}` : '', copilot ? `\n${copilot}` : ''].join('\n')
-  return { context, insightMode: 'campaign_creatives' }
+  return { context }
 }
 
 /**
