@@ -241,13 +241,6 @@ export function ChatPage() {
     void sendMessage(input)
   }
 
-  const jumpToLatest = useCallback(() => {
-    setPinnedToBottom(true)
-    requestAnimationFrame(() => {
-      bottom.current?.scrollIntoView({ block: 'end', behavior: 'smooth' })
-    })
-  }, [])
-
   const onComposerKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
@@ -272,15 +265,11 @@ export function ChatPage() {
 
   return (
     <div className="mx-auto flex h-full min-h-0 w-full min-w-0 max-w-3xl flex-col">
-      {composerDocked ? (
-        <header className="shrink-0 border-b border-stone-200/50 pb-3 sm:pb-4">
-          <CopilotSubtitle align="left" />
-        </header>
-      ) : (
+      {!composerDocked ? (
         <header className="shrink-0 pb-3 text-center">
           <CopilotSubtitle align="center" />
         </header>
-      )}
+      ) : null}
 
       {error ? (
         <div className="mt-2 shrink-0 rounded-lg border border-rose-200/80 bg-rose-50/90 px-3 py-2.5 text-sm text-rose-900">
@@ -294,16 +283,7 @@ export function ChatPage() {
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
         {composerDocked ? (
           <>
-            <div className="relative min-h-0 min-w-0 flex-1">
-              {!pinnedToBottom && (busy || pending) ? (
-                <button
-                  type="button"
-                  className="absolute bottom-2 right-2 z-10 rounded-full border border-stone-200 bg-white/95 px-3 py-1.5 text-xs font-medium text-stone-700 shadow-sm backdrop-blur-sm hover:border-brand/30 hover:bg-brand-50/50 sm:bottom-3 sm:right-3"
-                  onClick={jumpToLatest}
-                >
-                  Latest ↓
-                </button>
-              ) : null}
+            <div className="min-h-0 min-w-0 flex-1">
               <div
                 ref={scrollElRef}
                 onScroll={updatePinnedFromScroll}
@@ -327,12 +307,9 @@ export function ChatPage() {
                         <div className="min-w-0 pl-0 sm:pl-0.5">
                           <div className={roleLabelClass}>Assistant</div>
                           {m.thought ? (
-                            <details
-                              className="mb-2 rounded-xl border border-stone-200/60 bg-stone-50/80 open:bg-stone-50/90"
-                              open={!m.text}
-                            >
+                            <details className="mb-2 rounded-xl border border-stone-200/60 bg-stone-50/80 open:bg-stone-50/90">
                               <summary className="cursor-pointer select-none px-3 py-2 text-xs font-medium text-stone-600 sm:py-2.5">
-                                Thinking
+                                Thinking....
                               </summary>
                               <div className="border-t border-stone-200/50 px-3 py-2.5 sm:px-3.5">
                                 <ChatMarkdown compact>{m.thought}</ChatMarkdown>
@@ -351,12 +328,9 @@ export function ChatPage() {
                   {pending ? (
                     <div className="min-w-0 pl-0.5 sm:pl-0.5">
                       <div className={roleLabelClass}>Assistant</div>
-                      <details
-                        className="mb-2 rounded-xl border border-stone-200/60 bg-stone-50/80 open:bg-stone-50/90"
-                        open={!pending.text}
-                      >
+                      <details className="mb-2 rounded-xl border border-stone-200/60 bg-stone-50/80 open:bg-stone-50/90">
                         <summary className="cursor-pointer select-none px-3 py-2 text-xs font-medium text-stone-600 sm:py-2.5">
-                          Thinking
+                          Thinking....
                         </summary>
                         <div className="border-t border-stone-200/50 px-3 py-2.5 sm:px-3.5">
                           {pending.thought ? (

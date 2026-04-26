@@ -45,12 +45,11 @@ type Props = {
 export function CampaignCreativePcaSection({ data, error, loading }: Props) {
   const points = data?.points ?? []
   const evr = data?.explained_variance_ratio ?? []
-  const nFeat = data?.n_features_used
 
   if (error) {
     return (
       <div className="mb-0">
-        <h2 className={explorerUi.sectionTitle}>{CAMPAIGN_PCA_SECTION.heading}</h2>
+        <h2 className={explorerUi.performanceLabel}>{CAMPAIGN_PCA_SECTION.heading}</h2>
         <p className="text-sm text-red-600">{error}</p>
       </div>
     )
@@ -59,7 +58,7 @@ export function CampaignCreativePcaSection({ data, error, loading }: Props) {
   if (loading) {
     return (
       <div className="mb-0">
-        <h2 className={explorerUi.sectionTitle}>{CAMPAIGN_PCA_SECTION.heading}</h2>
+        <h2 className={explorerUi.performanceLabel}>{CAMPAIGN_PCA_SECTION.heading}</h2>
         <p className="text-sm text-stone-500">Loading PCA…</p>
       </div>
     )
@@ -68,7 +67,7 @@ export function CampaignCreativePcaSection({ data, error, loading }: Props) {
   if (!data || points.length < 2) {
     return (
       <div className="mb-0">
-        <h2 className={explorerUi.sectionTitle}>{CAMPAIGN_PCA_SECTION.heading}</h2>
+        <h2 className={explorerUi.performanceLabel}>{CAMPAIGN_PCA_SECTION.heading}</h2>
         <p className="text-sm text-stone-500">Need at least two creatives in this campaign for a PCA plot.</p>
       </div>
     )
@@ -79,16 +78,10 @@ export function CampaignCreativePcaSection({ data, error, loading }: Props) {
 
   return (
     <div className="mb-0">
-      <h2 className={explorerUi.sectionTitle}>{CAMPAIGN_PCA_SECTION.heading}</h2>
-      <p className="mb-3 max-w-3xl text-sm text-stone-600">{CAMPAIGN_PCA_SECTION.subline}</p>
-      {nFeat != null ? (
-        <p className="mb-2 text-xs text-stone-500">
-          Numeric features used: <span className="font-medium text-stone-700">{nFeat}</span>
-        </p>
-      ) : null}
-      <div className="surface-panel min-h-[14rem] w-full max-w-4xl p-3 sm:min-h-[16rem] sm:p-4">
-        <ResponsiveContainer width="100%" height={320}>
-          <ScatterChart margin={{ top: 12, right: 20, bottom: 28, left: 16 }}>
+      <h2 className={explorerUi.performanceLabel}>{CAMPAIGN_PCA_SECTION.heading}</h2>
+      <div className="surface-panel w-full max-w-4xl p-2 sm:p-3">
+        <ResponsiveContainer width="100%" height={220}>
+          <ScatterChart margin={{ top: 8, right: 12, bottom: 22, left: 8 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
             <XAxis
               type="number"
@@ -122,20 +115,6 @@ export function CampaignCreativePcaSection({ data, error, loading }: Props) {
           </ScatterChart>
         </ResponsiveContainer>
       </div>
-      <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-stone-600">
-        <li className="flex items-center gap-1.5">
-          <span className="inline-block h-2.5 w-2.5 rounded-full bg-slate-500" /> stable
-        </li>
-        <li className="flex items-center gap-1.5">
-          <span className="inline-block h-2.5 w-2.5 rounded-full bg-red-500" /> fatigued
-        </li>
-        <li className="flex items-center gap-1.5">
-          <span className="inline-block h-2.5 w-2.5 rounded-full bg-amber-600" /> underperformer
-        </li>
-        <li className="flex items-center gap-1.5">
-          <span className="inline-block h-2.5 w-2.5 rounded-full bg-green-600" /> top performer
-        </li>
-      </ul>
     </div>
   )
 }

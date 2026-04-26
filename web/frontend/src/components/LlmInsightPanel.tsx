@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 
 import type { PerformanceInsightMode } from '../lib/performanceInsightContext'
+import { explorerUi } from '../lib/explorerUi'
 
 type StreamEvent =
   | { type: 'text'; content: string }
@@ -129,10 +130,7 @@ export function LlmInsightPanel({ context, performanceError, panelClassName, ins
 
   return (
     <div className={`surface-panel border-stone-200/80 ${panelClassName ?? 'mt-5'}`}>
-      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="text-sm font-semibold text-stone-900">LLM insight</h3>
-        <p className="text-[0.65rem] text-stone-500 sm:text-xs">Powered by Gemma 4.</p>
-      </div>
+      <h2 className={explorerUi.performanceLabel}>LLM insight</h2>
       {error ? (
         <p className="text-sm text-red-600">{error}</p>
       ) : (

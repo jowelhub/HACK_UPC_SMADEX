@@ -15,9 +15,7 @@ export const PAGE_SECTION = {
 } as const
 
 export const CAMPAIGN_PCA_SECTION = {
-  heading: 'Creative PCA',
-  subline:
-    'Principal components on standardized numeric fields from merged creatives (creative id, campaign id, advertiser/app names, launch date, and asset path excluded). Color = creative status.',
+  heading: 'Creatives PCA',
 } as const
 
 /** Creative detail: multi-dimension explorer from `creative_daily_country_os_stats` (joined frame). */

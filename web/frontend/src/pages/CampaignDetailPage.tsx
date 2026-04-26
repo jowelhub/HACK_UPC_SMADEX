@@ -129,7 +129,7 @@ export function CampaignDetailPage() {
         </div>
         <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:min-w-[min(100%,18rem)]">
           {pcaLoading ? (
-            <div className="surface-panel flex min-h-[12rem] flex-1 items-center justify-center border-stone-200/80 p-4 text-sm text-stone-500 lg:min-h-[20rem]">
+            <div className="surface-panel flex min-h-[8rem] flex-1 items-center justify-center border-stone-200/80 text-sm text-stone-500 lg:min-h-[12rem]">
               Loading portfolio data for insight…
             </div>
           ) : (
@@ -137,7 +137,7 @@ export function CampaignDetailPage() {
               context={insightPack?.context ?? null}
               insightMode={insightPack?.insightMode}
               performanceError={err}
-              panelClassName="mt-0 flex min-h-[12rem] flex-1 flex-col lg:min-h-[20rem]"
+              panelClassName="mt-0 flex min-h-[8rem] flex-1 flex-col lg:min-h-[12rem]"
             />
           )}
         </div>
