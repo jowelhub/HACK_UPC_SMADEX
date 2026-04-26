@@ -34,10 +34,10 @@ function metricSummaryCards(compact: boolean, summary: PerfSummary) {
   return (
     <>
       <MetricCard compact={compact} label="Spend (USD)" value={fmt(summary.total_spend_usd, 0)} />
+      <MetricCard compact={compact} label="Revenue (USD)" value={fmt(summary.total_revenue_usd as number)} />
       <MetricCard compact={compact} label="Impressions" value={fmt(summary.total_impressions, 0)} />
       <MetricCard compact={compact} label="Clicks" value={fmt(summary.total_clicks as number, 0)} />
       <MetricCard compact={compact} label="Conversions" value={fmt(summary.total_conversions as number, 0)} />
-      <MetricCard compact={compact} label="Revenue (USD)" value={fmt(summary.total_revenue_usd as number)} />
       <MetricCard compact={compact} label="CTR" value={fmtPct(summary.overall_ctr as number)} />
       <MetricCard compact={compact} label="CPA (USD)" value={fmt(summary.overall_cpa_usd as number)} />
       <MetricCard compact={compact} label="ROAS" value={fmt(summary.overall_roas as number)} />
