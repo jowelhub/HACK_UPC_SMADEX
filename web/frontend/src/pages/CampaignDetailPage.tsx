@@ -122,26 +122,6 @@ export function CampaignDetailPage() {
         />
       </div>
 
-      <div className="flex flex-col gap-5 lg:flex-row lg:items-stretch lg:gap-6">
-        <div className="min-w-0 flex-[1.15] lg:max-w-[min(100%,40rem)]">
-          <CampaignCreativePcaSection data={pca} error={pcaErr} loading={pcaLoading} />
-        </div>
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:min-w-[min(100%,18rem)]">
-          {pcaLoading ? (
-            <div className="surface-panel flex min-h-[8rem] flex-1 items-center justify-center border-stone-200/80 text-sm text-stone-500 lg:min-h-[12rem]">
-              Loading portfolio data for insight…
-            </div>
-          ) : (
-            <LlmInsightPanel
-              context={insightPack?.context ?? null}
-              insightMode={insightPack?.insightMode}
-              performanceError={err}
-              panelClassName="mt-0 flex min-h-[8rem] flex-1 flex-col lg:min-h-[12rem]"
-            />
-          )}
-        </div>
-      </div>
-
       <div>
         <h2 className={explorerUi.sectionTitle}>{PAGE_SECTION.creatives}</h2>
         <div className="w-full overflow-x-auto pb-1 md:overflow-visible md:pb-0">
@@ -159,6 +139,26 @@ export function CampaignDetailPage() {
               </div>
             ))}
           </div>
+        </div>
+      </div>
+
+      <div className="flex flex-col gap-5 lg:flex-row lg:items-stretch lg:gap-6">
+        <div className="min-w-0 flex-[1.15] lg:max-w-[min(100%,40rem)]">
+          <CampaignCreativePcaSection data={pca} error={pcaErr} loading={pcaLoading} />
+        </div>
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col lg:min-w-[min(100%,18rem)]">
+          {pcaLoading ? (
+            <div className="surface-panel flex min-h-[8rem] flex-1 items-center justify-center border-stone-200/80 text-sm text-stone-500 lg:min-h-[12rem]">
+              Loading portfolio data for insight…
+            </div>
+          ) : (
+            <LlmInsightPanel
+              context={insightPack?.context ?? null}
+              insightMode={insightPack?.insightMode}
+              performanceError={err}
+              panelClassName="mt-0 flex min-h-[8rem] flex-1 flex-col lg:min-h-[12rem]"
+            />
+          )}
         </div>
       </div>
     </div>
