@@ -117,6 +117,7 @@ export function CreativeDetailPage() {
           creativeSummary={{
             status: creative.creative_status ?? null,
             perfScore: creative.perf_score ?? null,
+            fatigueDay: creative.fatigue_day ?? null,
           }}
         />
         <CreativeCrossDimensionSection

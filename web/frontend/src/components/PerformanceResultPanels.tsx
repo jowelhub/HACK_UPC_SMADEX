@@ -45,6 +45,33 @@ function metricSummaryCards(compact: boolean, summary: PerfSummary) {
   )
 }
 
+function creativeSummaryCards(
+  compact: boolean,
+  creativeSummary: { status?: string | null; perfScore?: number | null; fatigueDay?: number | null } | null | undefined,
+) {
+  if (!creativeSummary) return null
+  const statusRaw = creativeSummary.status
+  const status = statusRaw ? statusRaw.replace(/_/g, ' ').toLowerCase() : null
+  const fatigueValue =
+    creativeSummary.fatigueDay == null || Number.isNaN(creativeSummary.fatigueDay)
+      ? 'none'
+      : `day ${creativeSummary.fatigueDay}`
+  const perfScoreValue =
+    creativeSummary.perfScore == null || Number.isNaN(creativeSummary.perfScore)
+      ? null
+      : creativeSummary.perfScore.toFixed(3)
+
+  return (
+    <>
+      {status ? <MetricCard compact={compact} label="Status (seeded)" value={status} /> : null}
+      <MetricCard compact={compact} label="Fatigue day" value={fatigueValue} />
+      {perfScoreValue ? (
+        <MetricCard compact={compact} label="Performance score" value={perfScoreValue} hint="0-1" />
+      ) : null}
+    </>
+  )
+}
+
 type Props = {
   data: PerformanceQueryResponse | null
   err: string | null
@@ -60,6 +87,7 @@ type Props = {
   creativeSummary?: {
     status?: string | null
     perfScore?: number | null
+    fatigueDay?: number | null
   } | null
 }
 
@@ -110,7 +138,9 @@ export function PerformanceResultPanels({
   const kpiGoalLabel = (kpiGoal && String(kpiGoal).trim()) || 'CPA'
   const kpiLineName = metricLabel(kpiTimeseriesMetric)
   const spendLineName = metricLabel('spend_usd')
-  const hasCreativeSummary = Boolean(creativeSummary?.status != null || creativeSummary?.perfScore != null)
+  const hasCreativeSummary = Boolean(
+    creativeSummary?.status != null || creativeSummary?.perfScore != null || creativeSummary?.fatigueDay != null,
+  )
 
   const dailySeriesPanel = lockDailySeriesToKpiGoal ? (
     <div className="surface-panel flex min-h-0 min-w-0 w-full flex-1 flex-col">
@@ -142,7 +172,7 @@ export function PerformanceResultPanels({
             />
             <Tooltip
               {...chartTooltipStyle}
-              labelFormatter={(_, payload) => {
+              labelFormatter={(_: unknown, payload: readonly { payload?: { date?: string; day_index?: number } }[] | undefined) => {
                 const row = payload?.[0]?.payload as { date?: string; day_index?: number } | undefined
                 const d = row?.date != null ? String(row.date) : null
                 const day = row?.day_index
@@ -150,7 +180,7 @@ export function PerformanceResultPanels({
                 if (day != null) return `Day ${day}`
                 return ''
               }}
-              formatter={(value, name) => {
+              formatter={(value: unknown, name: unknown) => {
                 if (value === undefined || value === null) return ['-', String(name)]
                 const num = typeof value === 'number' ? value : Number(value)
                 if (Number.isNaN(num)) return ['-', String(name)]
@@ -247,7 +277,7 @@ export function PerformanceResultPanels({
             />
             <Tooltip
               {...chartTooltipStyle}
-              labelFormatter={(_, payload) => {
+              labelFormatter={(_: unknown, payload: readonly { payload?: { date?: string; day_index?: number } }[] | undefined) => {
                 const row = payload?.[0]?.payload as { date?: string; day_index?: number } | undefined
                 const d = row?.date != null ? String(row.date) : null
                 const day = row?.day_index
@@ -255,7 +285,7 @@ export function PerformanceResultPanels({
                 if (day != null) return `Day ${day}`
                 return ''
               }}
-              formatter={(value, name) => {
+              formatter={(value: unknown, name: unknown) => {
                 const label = String(name)
                 if (value === undefined || value === null) return ['-', label]
                 const num = typeof value === 'number' ? value : Number(value)
@@ -309,21 +339,7 @@ export function PerformanceResultPanels({
               <div
                 className={`grid min-w-0 grid-cols-2 gap-2 sm:gap-2.5 max-lg:order-2 lg:col-start-1 lg:row-start-2 lg:w-full lg:max-w-[min(24rem,36vw)] xl:max-w-[min(26rem,32vw)]`}
               >
-                {hasCreativeSummary ? (
-                  <div className="col-span-2 min-w-0 rounded border border-stone-200 bg-white px-3 py-2">
-                    <div className="text-[10px] font-medium uppercase tracking-wide text-stone-500">Creative summary (seeded)</div>
-                    {creativeSummary?.status != null ? (
-                      <div className="mt-0.5 text-sm text-stone-700">
-                        Status: <span className="font-medium">{creativeSummary.status.replace(/_/g, ' ')}</span>
-                      </div>
-                    ) : null}
-                    {creativeSummary?.perfScore != null ? (
-                      <div className="mt-0.5 text-sm text-stone-700">
-                        Performance score: <span className="font-medium">{creativeSummary.perfScore.toFixed(3)}</span> (0–1)
-                      </div>
-                    ) : null}
-                  </div>
-                ) : null}
+                {hasCreativeSummary ? creativeSummaryCards(compact, creativeSummary) : null}
                 {metricSummaryCards(compact, summary)}
               </div>
               <div className="flex min-h-0 min-w-0 w-full flex-col max-lg:order-4 lg:col-start-2 lg:row-start-2 lg:mx-0">
@@ -335,21 +351,7 @@ export function PerformanceResultPanels({
               <h2 className={explorerUi.performanceLabel}>{PERFORMANCE_SECTION.heading}</h2>
               <div className="mb-5">
                 <div className="grid min-w-0 grid-cols-2 gap-2 sm:gap-2.5">
-                  {hasCreativeSummary ? (
-                    <div className="col-span-2 min-w-0 rounded border border-stone-200 bg-white px-3 py-2">
-                      <div className="text-[10px] font-medium uppercase tracking-wide text-stone-500">Creative summary (seeded)</div>
-                      {creativeSummary?.status != null ? (
-                        <div className="mt-0.5 text-sm text-stone-700">
-                          Status: <span className="font-medium">{creativeSummary.status.replace(/_/g, ' ')}</span>
-                        </div>
-                      ) : null}
-                      {creativeSummary?.perfScore != null ? (
-                        <div className="mt-0.5 text-sm text-stone-700">
-                          Performance score: <span className="font-medium">{creativeSummary.perfScore.toFixed(3)}</span> (0–1)
-                        </div>
-                      ) : null}
-                    </div>
-                  ) : null}
+                  {hasCreativeSummary ? creativeSummaryCards(compact, creativeSummary) : null}
                   {metricSummaryCards(compact, summary)}
                 </div>
               </div>
@@ -394,7 +396,7 @@ export function PerformanceResultPanels({
                       />
                       <Tooltip
                         {...chartTooltipStyle}
-                        formatter={(v) => [formatMetricValue(barMetric, Number(v)), metricLabel(barMetric)]}
+                        formatter={(v: unknown) => [formatMetricValue(barMetric, Number(v)), metricLabel(barMetric)]}
                       />
                       <Bar dataKey="v" name={metricLabel(barMetric)} fill="#7c3aad" radius={[0, 2, 2, 0]} />
                     </BarChart>
