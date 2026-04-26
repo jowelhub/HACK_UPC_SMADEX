@@ -88,6 +88,17 @@ def performance_hierarchy(request: Request) -> dict[str, Any]:
     return svc.hierarchy()
 
 
+@app.get("/api/campaigns/{campaign_id}/creative-pca")
+def campaign_creative_pca(campaign_id: int, request: Request) -> dict[str, Any]:
+    """2D PCA on merged numeric creative features for one campaign (no clustering)."""
+    store = request.app.state.store
+    camps = store.campaigns
+    if camps.empty or not bool((camps["campaign_id"] == int(campaign_id)).any()):
+        raise HTTPException(status_code=404, detail="Campaign not found")
+    svc: PerformanceService = request.app.state.performance
+    return svc.campaign_creative_pca(int(campaign_id))
+
+
 @app.get("/api/creatives/{creative_id}/asset")
 def creative_asset_file(creative_id: int, request: Request) -> FileResponse:
     store = request.app.state.store

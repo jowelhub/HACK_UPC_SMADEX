@@ -6,7 +6,6 @@ import os
 from functools import lru_cache
 
 import pandas as pd
-from sqlalchemy import inspect
 
 
 def get_database_url() -> str:
@@ -91,29 +90,20 @@ class DataStore:
         advertisers = pd.read_sql_table("advertisers", con=engine)
         campaigns = pd.read_sql_table("campaigns", con=engine)
         creatives = pd.read_sql_table("creatives", con=engine)
+        creative_health_scores = pd.read_sql_table("creative_health_scores", con=engine)
         daily = pd.read_sql_table("creative_daily_country_os_stats", con=engine)
 
-        insp = inspect(engine)
-        if insp.has_table("creative_summary"):
-            creative_summary = pd.read_sql_table("creative_summary", con=engine)
-            if "creative_launch_date" in creative_summary.columns:
-                creative_summary["creative_launch_date"] = pd.to_datetime(creative_summary["creative_launch_date"])
-        else:
-            creative_summary = pd.DataFrame()
-        if insp.has_table("advertiser_campaign_rankings"):
-            campaign_rankings = pd.read_sql_table("advertiser_campaign_rankings", con=engine)
-        else:
-            campaign_rankings = pd.DataFrame()
+        creatives = creatives.merge(creative_health_scores, on="creative_id", how="left")
 
         daily["date"] = pd.to_datetime(daily["date"])
         campaigns["start_date"] = pd.to_datetime(campaigns["start_date"])
         campaigns["end_date"] = pd.to_datetime(campaigns["end_date"])
+        if "creative_launch_date" in creatives.columns:
+            creatives["creative_launch_date"] = pd.to_datetime(creatives["creative_launch_date"])
 
         self.advertisers = advertisers
         self.campaigns = campaigns
         self.creatives = creatives
-        self.creative_summary = creative_summary
-        self.campaign_rankings = campaign_rankings
         self.daily_enriched = _build_daily_enriched(daily, campaigns, creatives, advertisers)
 
 

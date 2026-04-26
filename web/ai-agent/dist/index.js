@@ -42,9 +42,10 @@ app.post('/api/agent/insight', async (c) => {
     if (!context.trim()) {
         return c.json({ error: 'Expected { context: string }' }, 400);
     }
+    const mode = body?.insightMode === 'campaign_creatives' ? 'campaign_creatives' : 'default';
     const model = (process.env.CHAT_MODEL || 'gemma-4-31b-it').trim();
     const client = new GoogleGenAI({ apiKey });
-    const stream = createInsightReadable(client, { model, context: context.trim() });
+    const stream = createInsightReadable(client, { model, context: context.trim(), mode });
     return c.newResponse(stream, {
         headers: {
             'Content-Type': 'text/event-stream; charset=utf-8',

@@ -45,15 +45,18 @@ app.post('/api/agent/insight', async (c) => {
   if (!apiKey) {
     return c.json({ error: 'Set GOOGLE_GENERATIVE_AI_API_KEY' }, 503)
   }
-  const body = await c.req.json<{ context?: string }>()
+  const body = await c.req.json<{ context?: string; insightMode?: string }>()
   const context = typeof body?.context === 'string' ? body.context : ''
   if (!context.trim()) {
     return c.json({ error: 'Expected { context: string }' }, 400)
   }
 
+  const mode =
+    body?.insightMode === 'campaign_creatives' ? ('campaign_creatives' as const) : ('default' as const)
+
   const model = (process.env.CHAT_MODEL || 'gemma-4-31b-it').trim()
   const client = new GoogleGenAI({ apiKey })
-  const stream = createInsightReadable(client, { model, context: context.trim() })
+  const stream = createInsightReadable(client, { model, context: context.trim(), mode })
 
   return c.newResponse(stream, {
     headers: {

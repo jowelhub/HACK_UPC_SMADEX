@@ -1,17 +1,29 @@
 import { useEffect, useState } from 'react'
 
+import type { PerformanceInsightMode } from '../lib/performanceInsightContext'
+import { explorerUi } from '../lib/explorerUi'
+import { LLM_INSIGHT_SECTION } from '../lib/performanceLabels'
+
 type StreamEvent =
   | { type: 'text'; content: string }
   | { type: 'thought'; content: string }
   | { type: 'error'; message: string }
   | { type: 'done' }
 
+/** Strips legacy SSE suffix and model echoes (handles split chunks via final pass). */
+function sanitizeInsightDisplay(text: string): string {
+  return text.replace(/\s*\[Output truncated\.\]\s*/gi, ' ').replace(/\s{2,}/g, ' ').trimEnd()
+}
+
+const EMPTY_INSIGHT_FALLBACK =
+  'No insight was returned. Refresh the page or restart the AI agent if this keeps happening.'
+
 function parseSseDataLines(buffer: string): { events: StreamEvent[]; rest: string } {
   const events: StreamEvent[] = []
-  const parts = buffer.split('\n\n')
+  const parts = buffer.split(/\r?\n\r?\n/)
   const rest = parts.pop() ?? ''
   for (const block of parts) {
-    for (const line of block.split('\n')) {
+    for (const line of block.split(/\r?\n/)) {
       if (!line.startsWith('data:')) continue
       const json = line.slice(5).trim()
       if (!json) continue
@@ -28,12 +40,19 @@ function parseSseDataLines(buffer: string): { events: StreamEvent[]; rest: strin
 type Props = {
   context: string | null
   performanceError: string | null
+  /** Extra classes on the panel (e.g. `mt-0 flex-1` when laid out beside PCA). */
+  panelClassName?: string
+  /** Selects a shorter system prompt + token budget on the ai-agent (no tools). */
+  insightMode?: PerformanceInsightMode
+  /** Deterministic local fallback when the model returns no visible text. */
+  fallbackText?: string | null
 }
 
-export function LlmInsightPanel({ context, performanceError }: Props) {
+export function LlmInsightPanel({ context, performanceError, panelClassName, insightMode, fallbackText }: Props) {
   const [text, setText] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [typingFallback, setTypingFallback] = useState('')
 
   const canRun = Boolean(context?.trim()) && !performanceError
 
@@ -42,6 +61,7 @@ export function LlmInsightPanel({ context, performanceError }: Props) {
       setText('')
       setError(null)
       setBusy(false)
+      setTypingFallback('')
       return
     }
 
@@ -49,6 +69,7 @@ export function LlmInsightPanel({ context, performanceError }: Props) {
     setText('')
     setError(null)
     setBusy(true)
+    setTypingFallback('')
 
     void (async () => {
       let res: Response
@@ -56,7 +77,7 @@ export function LlmInsightPanel({ context, performanceError }: Props) {
         res = await fetch('/api/agent/insight', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ context }),
+          body: JSON.stringify({ context, insightMode: insightMode ?? undefined }),
           signal: ac.signal,
         })
       } catch (e) {
@@ -94,18 +115,52 @@ export function LlmInsightPanel({ context, performanceError }: Props) {
             if (ev.type === 'text') acc += ev.content
             else if (ev.type === 'error') setError(ev.message)
           }
-          setText(acc)
+          setText(sanitizeInsightDisplay(acc))
+        }
+        if (buf.trim()) {
+          for (const line of buf.split(/\r?\n/)) {
+            if (!line.startsWith('data:')) continue
+            const j = line.slice(5).trim()
+            if (!j) continue
+            try {
+              const ev = JSON.parse(j) as StreamEvent
+              if (ev.type === 'text') acc += ev.content
+              else if (ev.type === 'error') setError(ev.message)
+            } catch {
+              /* ignore */
+            }
+          }
         }
       } catch (e) {
         if ((e as Error).name === 'AbortError') return
         setError(String(e))
       } finally {
+        setText(sanitizeInsightDisplay(acc))
         setBusy(false)
       }
     })()
 
     return () => ac.abort()
-  }, [canRun, context, performanceError])
+  }, [canRun, context, performanceError, insightMode])
+
+  useEffect(() => {
+    if (!busy || text || !fallbackText?.trim()) {
+      setTypingFallback('')
+      return
+    }
+
+    let i = 0
+    const source = fallbackText.trim()
+    const timer = window.setInterval(() => {
+      i += 4
+      setTypingFallback(source.slice(0, i))
+      if (i >= source.length) {
+        window.clearInterval(timer)
+      }
+    }, 24)
+
+    return () => window.clearInterval(timer)
+  }, [busy, text, fallbackText])
 
   if (performanceError) {
     return null
@@ -116,22 +171,17 @@ export function LlmInsightPanel({ context, performanceError }: Props) {
   }
 
   return (
-    <div className="surface-panel mt-5 border-stone-200/80">
-      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2">
-        <h3 className="text-sm font-semibold text-stone-900">LLM insight</h3>
-        <p className="text-[0.65rem] text-stone-400 sm:text-xs">
-          Gemma 4 via <code className="rounded bg-stone-100 px-1 py-0.5 font-mono text-[0.65rem]">/api/agent/insight</code>
-          {' '}
-          (same stack as the SQL copilot)
-        </p>
+    <div className={`flex min-h-0 flex-col ${panelClassName ?? 'mt-5'}`}>
+      <h2 className={explorerUi.performanceLabel}>{LLM_INSIGHT_SECTION.heading}</h2>
+      <div className="surface-panel flex min-h-0 flex-1 flex-col border-stone-200/80">
+        {error ? (
+          <p className="text-sm text-red-600">{error}</p>
+        ) : (
+          <p className="whitespace-pre-wrap text-sm leading-relaxed text-stone-700">
+            {text || typingFallback || (busy ? 'Generating insight…' : fallbackText || EMPTY_INSIGHT_FALLBACK)}
+          </p>
+        )}
       </div>
-      {error ? (
-        <p className="text-sm text-red-600">{error}</p>
-      ) : (
-        <p className="whitespace-pre-wrap text-sm leading-relaxed text-stone-700">
-          {text || (busy ? 'Generating insight…' : '')}
-        </p>
-      )}
     </div>
   )
 }

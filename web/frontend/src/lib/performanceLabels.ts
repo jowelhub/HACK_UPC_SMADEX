@@ -14,6 +14,18 @@ export const PAGE_SECTION = {
   advertisers: 'Advertisers',
 } as const
 
+export const CAMPAIGN_PCA_SECTION = {
+  heading: 'Creatives PCA',
+} as const
+
+export const DAILY_SERIES_SECTION = {
+  heading: 'Daily series',
+} as const
+
+export const LLM_INSIGHT_SECTION = {
+  heading: 'LLM insight',
+} as const
+
 /** Creative detail: multi-dimension explorer from `creative_daily_country_os_stats` (joined frame). */
 export const CREATIVE_CROSS_DIM = {
   heading: 'Cross-dimension analysis',

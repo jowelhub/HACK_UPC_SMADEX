@@ -20,10 +20,13 @@ export type HierarchyCreative = {
   slug: string
   label: string
   asset_file: string | null
-  /** From `creative_summary.creative_status` when seeded. */
+  /** From merged `creatives.creative_status` when seeded. */
   creative_status?: string | null
   fatigue_day?: number | null
   perf_score?: number | null
+  health_score?: number | null
+  shap_json?: any
+  daily_hazards_json?: any
   /** True when `creative_status === 'fatigued'` (dataset label). */
   is_fatigued?: boolean
 }
@@ -31,12 +34,9 @@ export type HierarchyCampaign = {
   campaign_id: number
   slug: string
   label: string
+  /** Campaign optimization goal from merged campaigns (e.g. CPA, ROAS). */
+  kpi_goal?: string | null
   creatives: HierarchyCreative[]
-  /** From `advertiser_campaign_rankings` (1 = best within advertiser). */
-  portfolio_rank?: number | null
-  portfolio_composite_score?: number | null
-  portfolio_health_score?: number | null
-  n_healthy_creatives?: number | null
 }
 export type HierarchyAdvertiser = {
   advertiser_id: number
@@ -55,6 +55,26 @@ export async function fetchPerformanceHierarchy() {
 
 export function creativeAssetUrl(creativeId: number) {
   return apiPaths.creativeAsset(creativeId)
+}
+
+export type CampaignCreativePcaPoint = {
+  creative_id: number
+  pc1: number
+  pc2: number
+  label: string
+  creative_status: string | null
+}
+
+export type CampaignCreativePcaResponse = {
+  explained_variance_ratio: number[]
+  n_features_used?: number
+  points: CampaignCreativePcaPoint[]
+}
+
+export async function fetchCampaignCreativePca(campaignId: number): Promise<CampaignCreativePcaResponse> {
+  const r = await fetch(apiPaths.campaignCreativePca(campaignId))
+  if (!r.ok) throw new Error(await r.text())
+  return r.json() as Promise<CampaignCreativePcaResponse>
 }
 
 export async function fetchPerformanceQuery(payload: {

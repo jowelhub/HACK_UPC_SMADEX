@@ -1,17 +1,19 @@
 import { Link, Outlet, useLocation } from 'react-router-dom'
 import { pathCopilot, pathHome } from '../lib/routes'
 
-const secondaryNav = [{ to: pathCopilot(), label: 'NL → SQL' }] as const
+const primaryNav = [
+  { to: pathHome(), label: 'Advertisers' },
+  { to: pathCopilot(), label: 'Copilot' },
+] as const
 
 export function Layout() {
   const loc = useLocation()
   const isCopilot = loc.pathname === pathCopilot()
-  const isHome = loc.pathname === pathHome()
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       <header className="sticky top-0 z-20 shrink-0 border-b border-stone-200/90 bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-3.5 sm:px-6">
+        <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-4 py-3 sm:px-6">
           <Link
             to={pathHome()}
             className="font-display flex items-center gap-2.5 text-lg font-semibold tracking-tight text-stone-900"
@@ -21,28 +23,23 @@ export function Layout() {
               Smadex <span className="font-medium text-brand">Creative Lab</span>
             </span>
           </Link>
-          <nav className="flex flex-wrap gap-1 text-sm font-medium">
-            {!isHome ? (
-              <Link
-                to={pathHome()}
-                className="rounded-md px-3 py-1.5 text-sm text-stone-600 transition hover:bg-stone-100 hover:text-brand"
-              >
-                Advertisers
-              </Link>
-            ) : null}
-            {secondaryNav.map((n) => (
+          <nav className="flex flex-wrap items-center gap-1 text-sm font-medium">
+            {primaryNav.map((n) => {
+              const active = n.to === pathCopilot() ? isCopilot : !isCopilot
+              return (
               <Link
                 key={n.to}
                 to={n.to}
                 className={`rounded-md px-3 py-1.5 text-sm transition ${
-                  loc.pathname === n.to
-                    ? 'bg-brand-50 font-medium text-brand'
+                  active
+                    ? 'bg-stone-100 font-medium text-stone-900'
                     : 'text-stone-600 hover:bg-stone-100 hover:text-brand'
                 }`}
               >
                 {n.label}
               </Link>
-            ))}
+              )
+            })}
           </nav>
         </div>
       </header>

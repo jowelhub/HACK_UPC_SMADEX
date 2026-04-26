@@ -4,10 +4,13 @@ import { explorerUi } from '../lib/explorerUi'
 
 type Props = {
   to: string
+  /** Caption under the asset (e.g. creative id). */
   label: string
   creativeId: number
   creativeStatus?: string | null
   isFatigued?: boolean
+  /** Optional native tooltip (e.g. headline) when label is an id. */
+  title?: string | null
 }
 
 function statusBadgeClass(status: string | null | undefined, fatigued: boolean | undefined) {
@@ -19,11 +22,11 @@ function statusBadgeClass(status: string | null | undefined, fatigued: boolean |
   return 'bg-stone-50 text-stone-500 ring-stone-200'
 }
 
-export function ExplorerCreativeCard({ to, label, creativeId, creativeStatus, isFatigued }: Props) {
+export function ExplorerCreativeCard({ to, label, creativeId, creativeStatus, isFatigued, title }: Props) {
   const showBadge = Boolean(creativeStatus || isFatigued)
   const badgeText = isFatigued ? 'Fatigued' : creativeStatus?.replace(/_/g, ' ') ?? ''
   return (
-    <Link to={to} className={explorerUi.creativeTile}>
+    <Link to={to} className={explorerUi.creativeTile} title={title?.trim() || undefined}>
       <div className="relative">
         {showBadge && badgeText ? (
           <span
@@ -36,7 +39,7 @@ export function ExplorerCreativeCard({ to, label, creativeId, creativeStatus, is
           <img
             src={creativeAssetUrl(creativeId)}
             alt=""
-            className="max-h-full max-w-full object-contain"
+            className="block h-auto w-full object-contain max-h-[min(65vh,36rem)]"
             loading="lazy"
           />
         </div>

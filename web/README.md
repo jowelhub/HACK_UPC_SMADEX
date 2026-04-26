@@ -14,21 +14,20 @@ For full **ad-tech vocabulary**, **hackathon judging goals**, and **column-by-co
 
 ## PostgreSQL model (table mode)
 
-Schema DDL: **`db/schema.sql`**. Each **delivery / entity** CSV under **`../data_science/data/`** has a matching **public table** (same base name as the file). **`data_dictionary.csv`** is documentation only (not loaded into Postgres). The API builds the explorer from the **daily fact table** joined to dimensions in memory.
+Schema DDL: **`db/schema.sql`**. Seeded tables map to merged delivery CSVs under **`../data_science/data/`** (logical table names **`campaigns`** / **`creatives`** load from **`campaigns_merged.csv`** / **`creative_merged.csv`**). **`data_dictionary.csv`** is documentation only (not loaded into Postgres). The API builds the explorer from the **daily fact table** joined to dimensions in memory.
 
 | Table | Source CSV |
 |-------|------------|
 | **`advertisers`** | `advertisers.csv` |
-| **`campaigns`** | `campaigns.csv` |
-| **`creatives`** | `creatives.csv` |
-| **`campaign_summary`** | `campaign_summary.csv` |
-| **`creative_summary`** | `creative_summary.csv` |
-| **`advertiser_campaign_rankings`** | `advertiser_campaign_rankings.csv` |
+| **`campaigns`** | `campaigns_merged.csv` |
+| **`creatives`** | `creative_merged.csv` |
 | **`creative_daily_country_os_stats`** | `creative_daily_country_os_stats.csv` |
 
-**Relationships:** `campaigns.advertiser_id` → `advertisers`. `creatives.campaign_id` → `campaigns`. `campaign_summary`, `advertiser_campaign_rankings`, and daily rows reference `campaign_id` where applicable. `creative_summary` and daily rows reference `creative_id`.
+**Relationships:** `campaigns.advertiser_id` → `advertisers`. `creatives.campaign_id` → `campaigns`. Daily rows reference `campaign_id` and `creative_id`.
 
-**Existing Docker volumes:** If **`creative_daily_country_os_stats`** already has rows but newer/empty tables exist, **`ensure_db_seeded`** backfills **`campaign_summary`**, **`creative_summary`**, and **`advertiser_campaign_rankings`** from `/import` without truncating the fact table.
+**Legacy Docker volumes** (old split schema with `campaign_summary` / `creative_summary` / `advertiser_campaign_rankings`): on startup, **`ensure_db_seeded`** detects that layout, drops the old tables, reapplies **`db/schema.sql`**, truncates, and reloads from the merged CSVs.
+
+**Existing merged volumes:** If **`creative_daily_country_os_stats`** already has rows but **`campaigns`** or **`creatives`** is empty, **`ensure_db_seeded`** backfills those dimension tables from `/import` without truncating the fact table.
 
 ---
 
@@ -39,7 +38,7 @@ On **every backend container start**, `python -m scripts.ensure_db_seeded` runs 
 1. If any expected seed table is missing → apply **`db/schema.sql`**.
 2. Count rows in **`creative_daily_country_os_stats`**.
 3. If count **> 0** → log **`skip full import`** and **backfill** any empty optional tables from CSV (no truncate of the fact table).
-4. If count **== 0** → **`TRUNCATE`** all seven seeded tables (restart identities) → load every seeded CSV in dependency order from **`IMPORT_DATA_DIR`** (Compose: **`/import`** → **`../data_science/data`**).
+4. If count **== 0** (or a legacy schema was rebuilt) → **`TRUNCATE`** all four seeded tables (restart identities) → load every seeded CSV in dependency order from **`IMPORT_DATA_DIR`** (Compose: **`/import`** → **`../data_science/data`**).
 
 So your log line **`fact table empty; truncating (if any) and importing CSVs`** means the fact table had **zero** rows (fresh volume or wiped data). A second `docker compose up` with the same volume should show **`creative_daily_country_os_stats has … rows; skip import`**.
 
