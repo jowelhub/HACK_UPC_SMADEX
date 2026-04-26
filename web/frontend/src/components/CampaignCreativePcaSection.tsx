@@ -102,11 +102,8 @@ export function CampaignCreativePcaSection({ data, error, loading }: Props) {
                 const p = payload[0].payload as CampaignCreativePcaPoint
                 const st = p.creative_status ? p.creative_status.replace(/_/g, ' ') : '—'
                 return (
-                  <div className="max-w-xs rounded-md border border-stone-200 bg-white px-2.5 py-2 text-xs shadow-sm">
-                    <div className="font-semibold text-stone-900">{p.label}</div>
-                    <div className="mt-0.5 text-stone-600">
-                      Creative #{p.creative_id} · {st}
-                    </div>
+                  <div className="max-w-xs rounded-md border border-stone-200 bg-white px-2.5 py-2 text-xs font-medium text-stone-700 shadow-sm">
+                    Creative #{p.creative_id} · {st}
                   </div>
                 )
               }}
