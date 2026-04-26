@@ -13,7 +13,7 @@ import {
   findCampaignBySlug,
   findCreativeBySlug,
 } from '../lib/hierarchyResolve'
-import { PERFORMANCE_SECTION, UI_COPY, formatMetaLine } from '../lib/performanceLabels'
+import { UI_COPY, formatMetaLine } from '../lib/performanceLabels'
 import { buildCreativeFilters } from '../lib/performanceQueryDefaults'
 import { buildPerformanceInsightContext } from '../lib/performanceInsightContext'
 import { pathAdvertiser, pathCampaign, pathHome } from '../lib/routes'
@@ -142,7 +142,6 @@ export function CreativeDetailPage() {
       </div>
 
       <div className="relative z-10 min-h-0">
-        <h2 className={explorerUi.performanceLabel}>{PERFORMANCE_SECTION.heading}</h2>
         <PerformanceResultPanels
           data={data}
           err={err}

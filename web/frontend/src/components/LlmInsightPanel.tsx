@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 
 import type { PerformanceInsightMode } from '../lib/performanceInsightContext'
 import { explorerUi } from '../lib/explorerUi'
+import { LLM_INSIGHT_SECTION } from '../lib/performanceLabels'
 
 type StreamEvent =
   | { type: 'text'; content: string }
@@ -129,15 +130,17 @@ export function LlmInsightPanel({ context, performanceError, panelClassName, ins
   }
 
   return (
-    <div className={`surface-panel border-stone-200/80 ${panelClassName ?? 'mt-5'}`}>
-      <h2 className={explorerUi.performanceLabel}>LLM insight</h2>
-      {error ? (
-        <p className="text-sm text-red-600">{error}</p>
-      ) : (
-        <p className="whitespace-pre-wrap text-sm leading-relaxed text-stone-700">
-          {text || (busy ? 'Generating insight…' : '')}
-        </p>
-      )}
+    <div className={`flex min-h-0 flex-col ${panelClassName ?? 'mt-5'}`}>
+      <h2 className={explorerUi.performanceLabel}>{LLM_INSIGHT_SECTION.heading}</h2>
+      <div className="surface-panel flex min-h-0 flex-1 flex-col border-stone-200/80">
+        {error ? (
+          <p className="text-sm text-red-600">{error}</p>
+        ) : (
+          <p className="whitespace-pre-wrap text-sm leading-relaxed text-stone-700">
+            {text || (busy ? 'Generating insight…' : '')}
+          </p>
+        )}
+      </div>
     </div>
   )
 }

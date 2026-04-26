@@ -25,6 +25,25 @@ import {
   timeseriesMetricFromKpiGoal,
   type MetricKey,
 } from '../lib/performanceFormat'
+import { DAILY_SERIES_SECTION, PERFORMANCE_SECTION } from '../lib/performanceLabels'
+import { explorerUi } from '../lib/explorerUi'
+
+type PerfSummary = NonNullable<PerformanceQueryResponse['summary']>
+
+function metricSummaryCards(compact: boolean, summary: PerfSummary) {
+  return (
+    <>
+      <MetricCard compact={compact} label="Spend (USD)" value={fmt(summary.total_spend_usd, 0)} />
+      <MetricCard compact={compact} label="Impressions" value={fmt(summary.total_impressions, 0)} />
+      <MetricCard compact={compact} label="Clicks" value={fmt(summary.total_clicks as number, 0)} />
+      <MetricCard compact={compact} label="Conversions" value={fmt(summary.total_conversions as number, 0)} />
+      <MetricCard compact={compact} label="Revenue (USD)" value={fmt(summary.total_revenue_usd as number)} />
+      <MetricCard compact={compact} label="CTR" value={fmtPct(summary.overall_ctr as number)} />
+      <MetricCard compact={compact} label="CPA (USD)" value={fmt(summary.overall_cpa_usd as number)} />
+      <MetricCard compact={compact} label="ROAS" value={fmt(summary.overall_roas as number)} />
+    </>
+  )
+}
 
 type Props = {
   data: PerformanceQueryResponse | null
@@ -88,8 +107,7 @@ export function PerformanceResultPanels({
 
   const dailySeriesPanel = lockDailySeriesToKpiGoal ? (
     <div className="surface-panel flex min-h-0 min-w-0 flex-1 flex-col">
-      <div className="mb-2 flex min-w-0 flex-col gap-1">
-        <h3 className="text-sm font-semibold text-stone-900">Daily series</h3>
+      <div className="mb-2 min-w-0">
         <p className="text-xs text-stone-600">
           KPI goal: <span className="font-medium text-stone-800">{kpiGoalLabel}</span>
         </p>
@@ -159,8 +177,7 @@ export function PerformanceResultPanels({
     </div>
   ) : (
     <div className="surface-panel flex min-h-0 min-w-0 flex-1 flex-col">
-      <div className="mb-2 flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
-        <h3 className="text-sm font-semibold text-stone-900">Daily series</h3>
+      <div className="mb-2 flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-end sm:justify-end">
         <div className="flex flex-wrap gap-2">
           <label className="flex items-center gap-1 text-xs text-stone-600">
             <span className="text-stone-500">Y1</span>
@@ -274,30 +291,35 @@ export function PerformanceResultPanels({
 
       {summary ? (
         <>
-          <div
-            className={`mb-5 flex flex-col gap-4 ${topRowSplit ? 'lg:flex-row lg:items-stretch lg:gap-4 xl:gap-6' : ''}`}
-          >
-            <div
-              className={`grid min-w-0 grid-cols-2 gap-2 sm:gap-2.5 ${
-                topRowSplit ? 'w-full shrink-0 lg:max-w-[min(24rem,36vw)] xl:max-w-[min(26rem,32vw)]' : ''
-              }`}
-            >
-              <MetricCard compact={compact} label="Spend (USD)" value={fmt(summary.total_spend_usd, 0)} />
-              <MetricCard compact={compact} label="Impressions" value={fmt(summary.total_impressions, 0)} />
-              <MetricCard compact={compact} label="Clicks" value={fmt(summary.total_clicks as number, 0)} />
-              <MetricCard compact={compact} label="Conversions" value={fmt(summary.total_conversions as number, 0)} />
-              <MetricCard compact={compact} label="Revenue (USD)" value={fmt(summary.total_revenue_usd as number)} />
-              <MetricCard compact={compact} label="CTR" value={fmtPct(summary.overall_ctr as number)} />
-              <MetricCard compact={compact} label="CPA (USD)" value={fmt(summary.overall_cpa_usd as number)} />
-              <MetricCard compact={compact} label="ROAS" value={fmt(summary.overall_roas as number)} />
-            </div>
-
-            {topRowSplit ? (
-              <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col max-lg:mx-auto max-lg:max-w-lg lg:mx-0">
+          {topRowSplit ? (
+            <div className="mb-5 grid max-lg:grid-cols-1 max-lg:gap-4 lg:grid-cols-[minmax(0,min(24rem,36vw))_minmax(0,1fr)] lg:gap-x-4 lg:gap-y-3 xl:gap-x-6">
+              <h2
+                className={`${explorerUi.performanceLabel} max-lg:order-1 lg:col-start-1 lg:row-start-1 lg:self-end`}
+              >
+                {PERFORMANCE_SECTION.heading}
+              </h2>
+              <h2
+                className={`${explorerUi.performanceLabel} max-lg:order-3 lg:col-start-2 lg:row-start-1 lg:self-end`}
+              >
+                {DAILY_SERIES_SECTION.heading}
+              </h2>
+              <div
+                className={`grid min-w-0 grid-cols-2 gap-2 sm:gap-2.5 max-lg:order-2 lg:col-start-1 lg:row-start-2 lg:w-full lg:max-w-[min(24rem,36vw)] xl:max-w-[min(26rem,32vw)]`}
+              >
+                {metricSummaryCards(compact, summary)}
+              </div>
+              <div className="flex min-h-0 min-w-0 flex-col max-lg:order-4 max-lg:mx-auto max-lg:max-w-lg lg:col-start-2 lg:row-start-2 lg:mx-0">
                 {dailySeriesPanel}
               </div>
-            ) : null}
-          </div>
+            </div>
+          ) : (
+            <>
+              <h2 className={explorerUi.performanceLabel}>{PERFORMANCE_SECTION.heading}</h2>
+              <div className="mb-5">
+                <div className="grid min-w-0 grid-cols-2 gap-2 sm:gap-2.5">{metricSummaryCards(compact, summary)}</div>
+              </div>
+            </>
+          )}
 
           {hasBreakdownChart ? (
             <div className="surface-panel mb-5">

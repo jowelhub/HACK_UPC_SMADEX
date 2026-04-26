@@ -11,7 +11,7 @@ import { usePerformanceSlice } from '../hooks/usePerformanceSlice'
 import type { CampaignCreativePcaResponse } from '../lib/api'
 import { fetchCampaignCreativePca } from '../lib/api'
 import { findAdvertiserBySlug, findCampaignBySlug } from '../lib/hierarchyResolve'
-import { PAGE_SECTION, PERFORMANCE_SECTION, UI_COPY } from '../lib/performanceLabels'
+import { PAGE_SECTION, UI_COPY } from '../lib/performanceLabels'
 import { buildCampaignFilters } from '../lib/performanceQueryDefaults'
 import { buildPerformanceInsightContext } from '../lib/performanceInsightContext'
 import { pathAdvertiser, pathCreative, pathHome } from '../lib/routes'
@@ -112,7 +112,6 @@ export function CampaignDetailPage() {
       </div>
 
       <div>
-        <h2 className={explorerUi.performanceLabel}>{PERFORMANCE_SECTION.heading}</h2>
         <PerformanceResultPanels
           data={data}
           err={err}
