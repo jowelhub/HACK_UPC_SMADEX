@@ -13,7 +13,7 @@ from sklearn.ensemble import RandomForestRegressor
 sys.modules['bottleneck'] = None
 sys.modules['numexpr'] = None
 
-surv = pd.read_csv("data_science/data/creative_merged.csv")
+surv = pd.read_csv("data/creative_merged.csv")
 surv["event"] = (surv["creative_status"] == "fatigued").astype(bool)
 surv["duration"] = np.where(surv["event"], surv["fatigue_day"], surv["total_days_active"]).astype(float)
 
@@ -114,4 +114,4 @@ out_df = pd.DataFrame({
     'health_score': health_scores,
     'shap_json': shap_json_list
 })
-out_df.to_csv("data_science/data/creative_health_scores.csv", index=False)
+out_df.to_csv("data/creative_health_scores.csv", index=False)

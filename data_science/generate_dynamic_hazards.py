@@ -5,7 +5,7 @@ import warnings
 from lifelines import CoxTimeVaryingFitter
 warnings.filterwarnings('ignore')
 
-DATA_DIR = "data_science/data/"
+DATA_DIR = "data/"
 
 def generate_dynamic_hazards():
     print("Loading data...")
