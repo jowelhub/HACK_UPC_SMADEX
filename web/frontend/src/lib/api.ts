@@ -26,6 +26,7 @@ export type HierarchyCreative = {
   perf_score?: number | null
   health_score?: number | null
   shap_json?: any
+  daily_hazards_json?: any
   /** True when `creative_status === 'fatigued'` (dataset label). */
   is_fatigued?: boolean
 }

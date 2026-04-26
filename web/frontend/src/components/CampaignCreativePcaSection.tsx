@@ -80,7 +80,7 @@ export function CampaignCreativePcaSection({ data, error, loading }: Props) {
     <div className="mb-0">
       <h2 className={explorerUi.performanceLabel}>{CAMPAIGN_PCA_SECTION.heading}</h2>
       <div className="surface-panel w-full max-w-4xl p-2 sm:p-3">
-        <ResponsiveContainer width="100%" height={220}>
+        <ResponsiveContainer width="99%" height={220}>
           <ScatterChart margin={{ top: 16, right: 12, bottom: 30, left: 34 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
             <XAxis

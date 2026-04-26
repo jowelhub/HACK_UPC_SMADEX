@@ -85,7 +85,7 @@ export function CreativeCrossDimensionSection({ data, queryError, fixedMetric }:
               <p className="mt-2 text-xs text-stone-500">No rows for this dimension in the selected window.</p>
             ) : (
               <div className="mt-2 h-[min(16rem,38dvh)] min-h-[11rem] w-full min-w-0 flex-1">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="99%" height="100%">
                   <BarChart data={barData} layout="vertical" margin={{ left: 2, right: 8, top: 4, bottom: 4 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" horizontal={false} />
                     <XAxis

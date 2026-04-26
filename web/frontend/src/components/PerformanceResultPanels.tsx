@@ -141,7 +141,7 @@ export function PerformanceResultPanels({
         </p>
       </div>
       <div className="mt-1 h-[min(16rem,42dvh)] min-h-[12rem] w-full min-w-0 flex-1 sm:h-[min(18rem,40dvh)] lg:h-[min(20rem,44dvh)] xl:h-80">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="99%" height="100%">
           <LineChart data={tsChartData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
             <XAxis
@@ -246,7 +246,7 @@ export function PerformanceResultPanels({
         </div>
       </div>
       <div className="mt-1 h-[min(16rem,42dvh)] min-h-[12rem] w-full min-w-0 flex-1 sm:h-[min(18rem,40dvh)] lg:h-[min(20rem,44dvh)] xl:h-80">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="99%" height="100%">
           <LineChart data={tsChartData}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" />
             <XAxis
@@ -370,7 +370,7 @@ export function PerformanceResultPanels({
               </div>
               <div className="mt-1 min-h-[12rem] w-full min-w-0 sm:min-h-[14rem]">
                 <div className="h-[min(18rem,45dvh)] w-full sm:h-[min(20rem,42dvh)] lg:h-[min(22rem,48dvh)] xl:h-[min(26rem,52vh)]">
-                  <ResponsiveContainer width="100%" height="100%">
+                  <ResponsiveContainer width="99%" height="100%">
                     <BarChart data={barData} layout="vertical" margin={{ left: 2, right: 8, top: 4, bottom: 4 }}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e7e5e4" horizontal={false} />
                       <XAxis

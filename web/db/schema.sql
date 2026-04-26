@@ -131,5 +131,6 @@ CREATE INDEX IF NOT EXISTS idx_campaigns_advertiser ON campaigns (advertiser_id)
 CREATE TABLE IF NOT EXISTS creative_health_scores (
     creative_id INTEGER PRIMARY KEY REFERENCES creatives (creative_id),
     health_score INTEGER NOT NULL,
-    shap_json JSONB
+    shap_json JSONB,
+    daily_hazards_json JSONB
 );

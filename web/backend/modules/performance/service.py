@@ -318,6 +318,7 @@ def _build_hierarchy(store: DataStore) -> list[dict[str, Any]]:
                 ps = cr.get("perf_score")
                 hs = cr.get("health_score")
                 sj = cr.get("shap_json")
+                dhj = cr.get("daily_hazards_json")
                 cr_entry: dict[str, Any] = {
                     "creative_id": crid,
                     "slug": crslug,
@@ -328,6 +329,7 @@ def _build_hierarchy(store: DataStore) -> list[dict[str, Any]]:
                     "perf_score": float(ps) if ps is not None and pd.notna(ps) else None,
                     "health_score": int(hs) if hs is not None and pd.notna(hs) else None,
                     "shap_json": sj if sj is not None and pd.notna(sj) else None,
+                    "daily_hazards_json": dhj if dhj is not None and pd.notna(dhj) else None,
                     "is_fatigued": st == "fatigued",
                 }
                 crlist.append(cr_entry)
