@@ -60,7 +60,8 @@ export function CreativeDetailPage() {
               `Total spend (selected range): ${data?.summary?.total_spend_usd != null ? Number(data.summary.total_spend_usd).toLocaleString(undefined, { maximumFractionDigits: 0 }) : 'none'}`,
               `Seeded status: ${(creative.creative_status ?? 'none').replace(/_/g, ' ')}`,
               `Fatigue day: ${creative.fatigue_day != null ? `day ${creative.fatigue_day}` : 'none'}`,
-              `Health Score: ${creative.health_score != null ? `${creative.health_score}/100` : 'none'}`,
+              `Creative health score: ${creative.health_score != null ? creative.health_score : 'none'}`,
+              'Focus the insight on Post-Launch Copilot (Interactive Hazard) and Creative Explainability (Health & Risk Factors).',
             ],
             dateFrom: dates.from,
             dateTo: dates.to,
@@ -82,6 +83,8 @@ export function CreativeDetailPage() {
       `Current delivery shows CTR ${fmtPct(summary.overall_ctr as number)}, CPA ${fmt(summary.overall_cpa_usd as number)} USD, and ROAS ${fmt(summary.overall_roas as number)}.`,
       `Seeded status is ${status} and fatigue day is ${fatigue}.`,
       `The creative health score is ${creative.health_score != null ? creative.health_score : 'unknown'}.`,
+      'Frame this through Post-Launch Copilot (Interactive Hazard): explain whether the current delivery and fatigue timing point to scale, hold, or refresh risk after launch.',
+      'Also cover Creative Explainability (Health & Risk Factors): connect the health score to the main creative risk signals and what the marketer should watch next.',
     ].join(' ')
   }, [campaign, creative, data])
 
@@ -187,4 +190,3 @@ export function CreativeDetailPage() {
     </div>
   )
 }
-

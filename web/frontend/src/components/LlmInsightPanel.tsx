@@ -52,6 +52,7 @@ export function LlmInsightPanel({ context, performanceError, panelClassName, ins
   const [text, setText] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [typingFallback, setTypingFallback] = useState('')
 
   const canRun = Boolean(context?.trim()) && !performanceError
 
@@ -60,6 +61,7 @@ export function LlmInsightPanel({ context, performanceError, panelClassName, ins
       setText('')
       setError(null)
       setBusy(false)
+      setTypingFallback('')
       return
     }
 
@@ -67,6 +69,7 @@ export function LlmInsightPanel({ context, performanceError, panelClassName, ins
     setText('')
     setError(null)
     setBusy(true)
+    setTypingFallback('')
 
     void (async () => {
       let res: Response
@@ -140,6 +143,25 @@ export function LlmInsightPanel({ context, performanceError, panelClassName, ins
     return () => ac.abort()
   }, [canRun, context, performanceError, insightMode])
 
+  useEffect(() => {
+    if (!busy || text || !fallbackText?.trim()) {
+      setTypingFallback('')
+      return
+    }
+
+    let i = 0
+    const source = fallbackText.trim()
+    const timer = window.setInterval(() => {
+      i += 4
+      setTypingFallback(source.slice(0, i))
+      if (i >= source.length) {
+        window.clearInterval(timer)
+      }
+    }, 24)
+
+    return () => window.clearInterval(timer)
+  }, [busy, text, fallbackText])
+
   if (performanceError) {
     return null
   }
@@ -156,7 +178,7 @@ export function LlmInsightPanel({ context, performanceError, panelClassName, ins
           <p className="text-sm text-red-600">{error}</p>
         ) : (
           <p className="whitespace-pre-wrap text-sm leading-relaxed text-stone-700">
-            {text || (busy ? 'Generating insight…' : fallbackText || EMPTY_INSIGHT_FALLBACK)}
+            {text || typingFallback || (busy ? 'Generating insight…' : fallbackText || EMPTY_INSIGHT_FALLBACK)}
           </p>
         )}
       </div>

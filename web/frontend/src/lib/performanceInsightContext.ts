@@ -269,6 +269,8 @@ function buildSlimCreativePack(params: {
   const s = data.summary!
   const scope = [
     `TASK: Analyze this single creative in plain language for a marketer.`,
+    `PRIORITY: Focus on Post-Launch Copilot (Interactive Hazard) and Creative Explainability (Health & Risk Factors).`,
+    `ANGLE: For CPA-focused creatives, explain fatigue risk, whether to scale/hold/refresh, and which health signals matter most next.`,
     `Creative: ${headline}`,
     ...subtitleLines.filter(Boolean),
     `Dates: ${dateFrom} → ${dateTo}`,
